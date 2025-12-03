@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+
+# Environment
+.env
+.key
+*.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Project specific
+.cache/
+.templates/
+downloads/
+*.db
+*.sqlite
+profiler_data.db
+
+# FFmpeg binaries (users should install separately)
+ffmpeg.exe
+ffprobe.exe
+
+# Generated outputs
+*.pdf
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backup script (not needed in repo)
+create_github_backup.py
