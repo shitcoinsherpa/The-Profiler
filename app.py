@@ -24,7 +24,7 @@ import gradio as gr
 import json
 import tempfile
 from datetime import datetime
-from profiler import BehavioralProfiler, ModelSelection, run_dev_meta_analysis
+from profiler import BehavioralProfiler, ModelSelection
 from config_manager import ConfigManager
 from models_config import (
     ESSENCE_MODEL_CHOICES,
@@ -32,9 +32,7 @@ from models_config import (
     AUDIO_MODEL_CHOICES,
     LIWC_MODEL_CHOICES,
     SYNTHESIS_MODEL_CHOICES,
-    get_default_model_for_stage,
-    DEV_META_MODELS,
-    DEFAULT_DEV_META_MODEL
+    get_default_model_for_stage
 )
 from video_downloader import download_video, is_valid_url, get_video_info
 from database import get_database, ProfileDatabase
@@ -1727,77 +1725,6 @@ def create_interface():
                 fn=do_refresh_subjects,
                 inputs=[],
                 outputs=[subject_dropdown]
-            )
-
-        # ==================================================================================
-        # DEVELOPER META-ANALYSIS SECTION - TO REMOVE BEFORE PRODUCTION
-        # ==================================================================================
-        with gr.Accordion("🛠️ [DEV] Meta-Analysis (REMOVE BEFORE UPLOAD)", open=False):
-            gr.Markdown("""
-            ### Developer Meta-Analysis
-            **⚠️ This section is for DEVELOPMENT ONLY and should be REMOVED before production upload.**
-
-            This sends the complete profiling report to Gemini 3 Pro for analysis of:
-            - Profiler system improvements
-            - Workflow optimization suggestions
-            - Behavioral analysis quality feedback
-            - Prompt engineering recommendations
-            """)
-
-            with gr.Row():
-                dev_meta_model = gr.Dropdown(
-                    choices=[(f"{m.name} ({m.provider})", m.id) for m in DEV_META_MODELS],
-                    value=DEFAULT_DEV_META_MODEL,
-                    label="Meta-Analysis Model",
-                    info="Model to use for meta-analysis"
-                )
-                run_meta_btn = gr.Button(
-                    "🔍 Run Meta-Analysis",
-                    variant="secondary",
-                    size="sm"
-                )
-
-            dev_meta_status = gr.Textbox(
-                label="",
-                value="Click 'Run Meta-Analysis' after completing an analysis to get feedback.",
-                interactive=False,
-                show_label=False,
-                max_lines=2
-            )
-
-            dev_meta_output = gr.Textbox(
-                label="Meta-Analysis Feedback",
-                value="",
-                lines=30,
-                interactive=False,
-                show_copy_button=True
-            )
-
-            # Meta-analysis handler
-            def run_meta_analysis_handler(json_str, model_id):
-                """Run developer meta-analysis on the current result."""
-                if not json_str or json_str == "{}" or json_str.startswith('{"error"'):
-                    return "⚠️ No analysis results available. Run analysis first.", ""
-
-                try:
-                    import json as json_module
-                    result = json_module.loads(json_str)
-
-                    # Run meta-analysis
-                    meta_feedback = run_dev_meta_analysis(
-                        result=result,
-                        model=model_id
-                    )
-
-                    return "✓ Meta-analysis complete", meta_feedback
-
-                except Exception as e:
-                    return f"⚠️ Meta-analysis failed: {str(e)}", ""
-
-            run_meta_btn.click(
-                fn=run_meta_analysis_handler,
-                inputs=[json_output, dev_meta_model],
-                outputs=[dev_meta_status, dev_meta_output]
             )
 
         # Footer
