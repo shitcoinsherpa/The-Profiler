@@ -5,14 +5,22 @@ Gradio application for multimodal AI-powered psychological assessment.
 
 import warnings
 import asyncio
+import os
 
 # Suppress noisy Windows asyncio connection reset warnings
 warnings.filterwarnings("ignore", message=".*ConnectionResetError.*")
 if hasattr(asyncio, 'WindowsProactorEventLoopPolicy'):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
+# Initialize centralized logging before other imports
+from logger import setup_logging
+setup_logging(
+    level=os.getenv("LOG_LEVEL", "INFO"),
+    log_file=True,
+    console=True
+)
+
 import gradio as gr
-import os
 import json
 import tempfile
 from datetime import datetime

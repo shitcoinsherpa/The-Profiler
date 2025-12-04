@@ -15,8 +15,12 @@ from modular_prompts import (
     AUDIO_PROMPTS,
     SYNTHESIS_PROMPTS,
 )
+from response_schemas import build_response_format
 
 logger = logging.getLogger(__name__)
+
+# Sub-analyses that should use structured JSON output
+STRUCTURED_OUTPUT_STAGES = {'personality', 'threat'}
 
 
 @dataclass
@@ -89,6 +93,13 @@ class ModularAnalysisExecutor:
         """Run a single sub-analysis."""
         start_time = time.time()
 
+        # Check if this sub-analysis should use structured JSON output
+        response_format = None
+        if name in STRUCTURED_OUTPUT_STAGES:
+            response_format = build_response_format(name)
+            if response_format:
+                logger.debug(f"Using structured output for '{name}' sub-analysis")
+
         try:
             if video and audio:
                 # Full multimodal call with native video + audio
@@ -99,7 +110,8 @@ class ModularAnalysisExecutor:
                     model=model,
                     max_tokens=self.max_tokens_sub,
                     temperature=self.temperature,
-                    timeout=timeout
+                    timeout=timeout,
+                    response_format=response_format
                 )
             elif video:
                 # Video-only call (Gemini native video handling)
@@ -109,7 +121,8 @@ class ModularAnalysisExecutor:
                     model=model,
                     max_tokens=self.max_tokens_sub,
                     temperature=self.temperature,
-                    timeout=timeout
+                    timeout=timeout,
+                    response_format=response_format
                 )
             elif audio:
                 # Audio call
@@ -119,7 +132,8 @@ class ModularAnalysisExecutor:
                     model=model,
                     max_tokens=self.max_tokens_sub,
                     temperature=self.temperature,
-                    timeout=timeout
+                    timeout=timeout,
+                    response_format=response_format
                 )
             else:
                 # Text-only call (synthesis)
@@ -129,7 +143,8 @@ class ModularAnalysisExecutor:
                     model=model,
                     max_tokens=self.max_tokens_synthesis,
                     temperature=self.temperature,
-                    timeout=timeout
+                    timeout=timeout,
+                    response_format=response_format
                 )
 
             execution_time = time.time() - start_time

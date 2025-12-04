@@ -10,6 +10,7 @@ from typing import Dict, Callable, Optional
 from datetime import datetime
 from dataclasses import dataclass
 
+from logger import AnalysisLogger
 from audio_extractor import extract_audio_from_video
 from api_client import OpenRouterClient
 from prompts import (
@@ -90,6 +91,7 @@ class BehavioralProfiler:
         self.model_config = model_config or ModelSelection()
         self.custom_prompts = custom_prompts
         self.use_template_prompts = use_template_prompts
+        self.analysis_logger = AnalysisLogger()
 
     def _get_prompt(self, stage: str) -> str:
         """
@@ -159,6 +161,10 @@ class BehavioralProfiler:
         """
         start_time = time.time()
         case_id = self._generate_case_id()
+
+        # Initialize analysis logging with case ID
+        self.analysis_logger.set_case_id(case_id)
+        self.analysis_logger.analysis_start(video_path)
 
         # Build models config dict for cache key
         models_config = {
@@ -494,6 +500,9 @@ ANALYSIS 4: LIWC-STYLE LINGUISTIC ANALYSIS
                 7  # Step 7 = 100% complete
             )
 
+            # Log analysis completion
+            self.analysis_logger.analysis_complete(processing_time)
+
             # Store result in cache
             if use_cache:
                 try:
@@ -520,6 +529,9 @@ ANALYSIS 4: LIWC-STYLE LINGUISTIC ANALYSIS
                 f"⚠️ ANALYSIS FAILED: {str(e)}",
                 0
             )
+
+            # Log analysis failure
+            self.analysis_logger.analysis_failed(str(e))
 
             raise Exception(f"Profiling failed: {str(e)}")
 

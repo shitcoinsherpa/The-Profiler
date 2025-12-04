@@ -390,13 +390,131 @@ FBI_SYNTHESIS_SCHEMA = {
 }
 
 
+# Schema for Modular Personality Synthesis (with numeric scores)
+PERSONALITY_SYNTHESIS_SCHEMA = {
+    "name": "personality_synthesis",
+    "strict": True,
+    "schema": {
+        "type": "object",
+        "properties": {
+            "big_five": {
+                "type": "object",
+                "properties": {
+                    "openness": {"type": "object", "properties": {
+                        "score": {"type": "integer", "minimum": 0, "maximum": 100},
+                        "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
+                        "evidence": {"type": "string"}
+                    }, "required": ["score", "confidence", "evidence"], "additionalProperties": False},
+                    "conscientiousness": {"type": "object", "properties": {
+                        "score": {"type": "integer", "minimum": 0, "maximum": 100},
+                        "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
+                        "evidence": {"type": "string"}
+                    }, "required": ["score", "confidence", "evidence"], "additionalProperties": False},
+                    "extraversion": {"type": "object", "properties": {
+                        "score": {"type": "integer", "minimum": 0, "maximum": 100},
+                        "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
+                        "evidence": {"type": "string"}
+                    }, "required": ["score", "confidence", "evidence"], "additionalProperties": False},
+                    "agreeableness": {"type": "object", "properties": {
+                        "score": {"type": "integer", "minimum": 0, "maximum": 100},
+                        "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
+                        "evidence": {"type": "string"}
+                    }, "required": ["score", "confidence", "evidence"], "additionalProperties": False},
+                    "neuroticism": {"type": "object", "properties": {
+                        "score": {"type": "integer", "minimum": 0, "maximum": 100},
+                        "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
+                        "evidence": {"type": "string"}
+                    }, "required": ["score", "confidence", "evidence"], "additionalProperties": False}
+                },
+                "required": ["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"],
+                "additionalProperties": False
+            },
+            "dark_triad": {
+                "type": "object",
+                "properties": {
+                    "narcissism": {"type": "object", "properties": {
+                        "score": {"type": "integer", "minimum": 0, "maximum": 100},
+                        "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
+                        "evidence": {"type": "string"}
+                    }, "required": ["score", "confidence", "evidence"], "additionalProperties": False},
+                    "machiavellianism": {"type": "object", "properties": {
+                        "score": {"type": "integer", "minimum": 0, "maximum": 100},
+                        "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
+                        "evidence": {"type": "string"}
+                    }, "required": ["score", "confidence", "evidence"], "additionalProperties": False},
+                    "psychopathy": {"type": "object", "properties": {
+                        "score": {"type": "integer", "minimum": 0, "maximum": 100},
+                        "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
+                        "evidence": {"type": "string"}
+                    }, "required": ["score", "confidence", "evidence"], "additionalProperties": False}
+                },
+                "required": ["narcissism", "machiavellianism", "psychopathy"],
+                "additionalProperties": False
+            },
+            "mbti_hypothesis": {"type": "string"},
+            "attachment_style": {"type": "string"},
+            "defense_mechanisms": {"type": "array", "items": {"type": "string"}}
+        },
+        "required": ["big_five", "dark_triad", "mbti_hypothesis", "attachment_style", "defense_mechanisms"],
+        "additionalProperties": False
+    }
+}
+
+
+# Schema for Modular Threat Synthesis (with numeric risk levels)
+THREAT_SYNTHESIS_SCHEMA = {
+    "name": "threat_synthesis",
+    "strict": True,
+    "schema": {
+        "type": "object",
+        "properties": {
+            "threat_matrix": {
+                "type": "object",
+                "properties": {
+                    "physical_violence": {"type": "object", "properties": {
+                        "risk_level": {"type": "integer", "minimum": 0, "maximum": 100},
+                        "indicators": {"type": "array", "items": {"type": "string"}},
+                        "mitigation": {"type": "string"}
+                    }, "required": ["risk_level", "indicators", "mitigation"], "additionalProperties": False},
+                    "manipulation": {"type": "object", "properties": {
+                        "risk_level": {"type": "integer", "minimum": 0, "maximum": 100},
+                        "indicators": {"type": "array", "items": {"type": "string"}},
+                        "mitigation": {"type": "string"}
+                    }, "required": ["risk_level", "indicators", "mitigation"], "additionalProperties": False},
+                    "deception": {"type": "object", "properties": {
+                        "risk_level": {"type": "integer", "minimum": 0, "maximum": 100},
+                        "indicators": {"type": "array", "items": {"type": "string"}},
+                        "mitigation": {"type": "string"}
+                    }, "required": ["risk_level", "indicators", "mitigation"], "additionalProperties": False},
+                    "instability": {"type": "object", "properties": {
+                        "risk_level": {"type": "integer", "minimum": 0, "maximum": 100},
+                        "indicators": {"type": "array", "items": {"type": "string"}},
+                        "mitigation": {"type": "string"}
+                    }, "required": ["risk_level", "indicators", "mitigation"], "additionalProperties": False}
+                },
+                "required": ["physical_violence", "manipulation", "deception", "instability"],
+                "additionalProperties": False
+            },
+            "overall_risk_level": {"type": "string", "enum": ["low", "moderate", "elevated", "high", "severe"]},
+            "primary_concerns": {"type": "array", "items": {"type": "string"}},
+            "recommended_approach": {"type": "string"}
+        },
+        "required": ["threat_matrix", "overall_risk_level", "primary_concerns", "recommended_approach"],
+        "additionalProperties": False
+    }
+}
+
+
 # Mapping of analysis stages to their schemas
 ANALYSIS_SCHEMAS: Dict[str, Dict[str, Any]] = {
     "essence": VISUAL_ESSENCE_SCHEMA,
     "multimodal": MULTIMODAL_BEHAVIORAL_SCHEMA,
     "audio": AUDIO_VOICE_SCHEMA,
     "liwc": LIWC_LINGUISTIC_SCHEMA,
-    "synthesis": FBI_SYNTHESIS_SCHEMA
+    "synthesis": FBI_SYNTHESIS_SCHEMA,
+    # Modular sub-analysis schemas
+    "personality": PERSONALITY_SYNTHESIS_SCHEMA,
+    "threat": THREAT_SYNTHESIS_SCHEMA
 }
 
 
