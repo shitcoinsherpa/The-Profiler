@@ -24,7 +24,7 @@ import gradio as gr
 import json
 import tempfile
 from datetime import datetime
-from profiler import BehavioralProfiler, ModelSelection
+from profiler import BehavioralProfiler, ModelSelection, run_dev_meta_analysis
 from config_manager import ConfigManager
 from models_config import (
     ESSENCE_MODEL_CHOICES,
@@ -32,7 +32,9 @@ from models_config import (
     AUDIO_MODEL_CHOICES,
     LIWC_MODEL_CHOICES,
     SYNTHESIS_MODEL_CHOICES,
-    get_default_model_for_stage
+    get_default_model_for_stage,
+    DEV_META_MODELS,
+    DEFAULT_DEV_META_MODEL
 )
 from video_downloader import download_video, is_valid_url, get_video_info
 from database import get_database, ProfileDatabase
@@ -634,10 +636,10 @@ def run_profiling_analysis(video_file, essence_model, multimodal_model, audio_mo
         Tuple of (progress_html, status, essence, multimodal, audio, liwc, fbi, transcript, confidence, json_output, json_file)
     """
     # Helper to build yield tuple with optional viz outputs
-    def build_yield(progress, status, essence, multimodal, audio, liwc, fbi, transcript, confidence, json_out, file_out, viz_conf=None, viz_big5=None, viz_dark=None, viz_threat=None):
+    def build_yield(progress, status, essence, multimodal, audio, liwc, fbi, transcript, confidence, json_out, file_out, viz_conf=None, viz_big5=None, viz_dark=None, viz_threat=None, viz_bte=None, viz_blink=None, viz_fate=None, viz_nci=None):
         base = (progress, status, essence, multimodal, audio, liwc, fbi, transcript, confidence, json_out, file_out)
         if VISUALIZATIONS_AVAILABLE:
-            return base + (viz_conf, viz_big5, viz_dark, viz_threat)
+            return base + (viz_conf, viz_big5, viz_dark, viz_threat, viz_bte, viz_blink, viz_fate, viz_nci)
         return base
 
     if video_file is None:
@@ -801,6 +803,11 @@ def run_profiling_analysis(video_file, essence_model, multimodal_model, audio_mo
         viz_big_five = None
         viz_dark_triad = None
         viz_threat = None
+        # NCI/Chase Hughes visualizations
+        viz_bte = None
+        viz_blink = None
+        viz_fate = None
+        viz_nci = None
         viz_status = ""
 
         if VISUALIZATIONS_AVAILABLE:
@@ -819,7 +826,12 @@ def run_profiling_analysis(video_file, essence_model, multimodal_model, audio_mo
                     create_confidence_gauge,
                     create_big_five_radar,
                     create_dark_triad_bars,
-                    create_threat_matrix
+                    create_threat_matrix,
+                    # NCI/Chase Hughes visualizations
+                    create_bte_gauge,
+                    create_blink_rate_chart,
+                    create_fate_radar,
+                    create_nci_deception_summary
                 )
                 # Create charts from actual analysis data
                 confidence_data = result.get('confidence', {})
@@ -829,14 +841,29 @@ def run_profiling_analysis(video_file, essence_model, multimodal_model, audio_mo
                 personality_text = analyses.get('personality_synthesis', '') or analyses.get('fbi_behavioral_synthesis', '')
                 threat_text = analyses.get('threat_synthesis', '') or analyses.get('fbi_behavioral_synthesis', '')
 
+                # Combine all analysis text for NCI extraction
+                all_analysis_text = analyses.get('fbi_behavioral_synthesis', '')
+                for key, value in analyses.items():
+                    if isinstance(value, str):
+                        all_analysis_text += "\n" + value
+
+                # Core visualizations
                 viz_confidence = create_confidence_gauge(confidence_data)
                 viz_big_five = create_big_five_radar(personality_text)
                 viz_dark_triad = create_dark_triad_bars(personality_text)
                 viz_threat = create_threat_matrix(threat_text)
 
-                charts_created = sum(1 for v in [viz_confidence, viz_big_five, viz_dark_triad, viz_threat] if v is not None)
-                if charts_created > 0:
-                    viz_status = f"\n📊 {charts_created} visualization(s) generated"
+                # NCI/Chase Hughes visualizations
+                viz_bte = create_bte_gauge(all_analysis_text)
+                viz_blink = create_blink_rate_chart(all_analysis_text)
+                viz_fate = create_fate_radar(all_analysis_text)
+                viz_nci = create_nci_deception_summary(all_analysis_text)
+
+                core_charts = sum(1 for v in [viz_confidence, viz_big_five, viz_dark_triad, viz_threat] if v is not None)
+                nci_charts = sum(1 for v in [viz_bte, viz_blink, viz_fate, viz_nci] if v is not None)
+                total_charts = core_charts + nci_charts
+                if total_charts > 0:
+                    viz_status = f"\n📊 {total_charts} visualization(s) generated ({core_charts} core, {nci_charts} NCI)"
             except Exception as viz_err:
                 logger.warning(f"Visualization generation failed: {viz_err}")
                 viz_status = "\n⚠️ Visualizations unavailable"
@@ -858,7 +885,8 @@ Download JSON report below.{saved_msg}"""
             formatted.get('transcript', 'Transcription not available'),
             formatted.get('confidence', 'Confidence scoring not available'),
             json_output, temp_file.name,
-            viz_confidence, viz_big_five, viz_dark_triad, viz_threat
+            viz_confidence, viz_big_five, viz_dark_triad, viz_threat,
+            viz_bte, viz_blink, viz_fate, viz_nci
         )
 
     except Exception as e:
@@ -889,6 +917,11 @@ try:
         create_big_five_radar,
         create_dark_triad_bars,
         create_threat_matrix,
+        # NCI/Chase Hughes visualizations
+        create_bte_gauge,
+        create_blink_rate_chart,
+        create_fate_radar,
+        create_nci_deception_summary,
         check_plotly_available
     )
     VISUALIZATIONS_AVAILABLE = check_plotly_available()
@@ -1577,6 +1610,54 @@ def create_interface():
                         show_copy_button=True
                     )
 
+            with gr.Tab("🔍 NCI Deception Analysis"):
+                gr.Markdown("*Chase Hughes / NCI University behavioral deception indicators*")
+
+                # NCI Visual Analytics Row 1 (BTE and Blink Rate)
+                if VISUALIZATIONS_AVAILABLE:
+                    with gr.Row():
+                        with gr.Column(scale=1):
+                            bte_gauge = gr.Plot(
+                                label="BTE Deception Score",
+                                show_label=False
+                            )
+                        with gr.Column(scale=1):
+                            blink_rate_chart = gr.Plot(
+                                label="Blink Rate Analysis",
+                                show_label=False
+                            )
+
+                    # NCI Visual Analytics Row 2 (FATE and Summary)
+                    with gr.Row():
+                        with gr.Column(scale=1):
+                            fate_radar = gr.Plot(
+                                label="FATE Motivational Profile",
+                                show_label=False
+                            )
+                        with gr.Column(scale=1):
+                            nci_deception_chart = gr.Plot(
+                                label="NCI Deception Summary",
+                                show_label=False
+                            )
+                else:
+                    # Placeholder variables if visualizations not available
+                    bte_gauge = gr.State(None)
+                    blink_rate_chart = gr.State(None)
+                    fate_radar = gr.State(None)
+                    nci_deception_chart = gr.State(None)
+
+                gr.Markdown("""
+                ### NCI Methodology Reference
+
+                **Behavioral Table of Elements (BTE)**: Score of 12+ suggests high deception probability
+
+                **Blink Rate**: Normal 17-25 BPM, Stressed 50+ BPM
+
+                **FATE Model**: Focus, Authority, Tribe, Emotion - primary psychological drivers
+
+                **Five C's Framework**: Change, Context, Clusters, Culture, Checklist
+                """)
+
         # Download Section
         gr.HTML('<div class="section-header">Export Report</div>')
         with gr.Row():
@@ -1727,6 +1808,77 @@ def create_interface():
                 outputs=[subject_dropdown]
             )
 
+        # ==================================================================================
+        # DEVELOPER META-ANALYSIS SECTION - TO REMOVE BEFORE PRODUCTION
+        # ==================================================================================
+        with gr.Accordion("🛠️ [DEV] Meta-Analysis (REMOVE BEFORE UPLOAD)", open=False):
+            gr.Markdown("""
+            ### Developer Meta-Analysis
+            **⚠️ This section is for DEVELOPMENT ONLY and should be REMOVED before production upload.**
+
+            This sends the complete profiling report to Gemini 3 Pro for analysis of:
+            - Profiler system improvements
+            - Workflow optimization suggestions
+            - Behavioral analysis quality feedback
+            - Prompt engineering recommendations
+            """)
+
+            with gr.Row():
+                dev_meta_model = gr.Dropdown(
+                    choices=[(f"{m.name} ({m.provider})", m.id) for m in DEV_META_MODELS],
+                    value=DEFAULT_DEV_META_MODEL,
+                    label="Meta-Analysis Model",
+                    info="Model to use for meta-analysis"
+                )
+                run_meta_btn = gr.Button(
+                    "🔍 Run Meta-Analysis",
+                    variant="secondary",
+                    size="sm"
+                )
+
+            dev_meta_status = gr.Textbox(
+                label="",
+                value="Click 'Run Meta-Analysis' after completing an analysis to get feedback.",
+                interactive=False,
+                show_label=False,
+                max_lines=2
+            )
+
+            dev_meta_output = gr.Textbox(
+                label="Meta-Analysis Feedback",
+                value="",
+                lines=30,
+                interactive=False,
+                show_copy_button=True
+            )
+
+            # Meta-analysis handler
+            def run_meta_analysis_handler(json_str, model_id):
+                """Run developer meta-analysis on the current result."""
+                if not json_str or json_str == "{}" or json_str.startswith('{"error"'):
+                    return "⚠️ No analysis results available. Run analysis first.", ""
+
+                try:
+                    import json as json_module
+                    result = json_module.loads(json_str)
+
+                    # Run meta-analysis
+                    meta_feedback = run_dev_meta_analysis(
+                        result=result,
+                        model=model_id
+                    )
+
+                    return "✓ Meta-analysis complete", meta_feedback
+
+                except Exception as e:
+                    return f"⚠️ Meta-analysis failed: {str(e)}", ""
+
+            run_meta_btn.click(
+                fn=run_meta_analysis_handler,
+                inputs=[json_output, dev_meta_model],
+                outputs=[dev_meta_status, dev_meta_output]
+            )
+
         # Footer
         gr.HTML("""
             <div class="disclaimer-box">
@@ -1777,13 +1929,18 @@ def create_interface():
             download_button
         ]
 
-        # Add visualization outputs if available
+        # Add visualization outputs if available (core + NCI charts)
         if VISUALIZATIONS_AVAILABLE:
             analysis_outputs.extend([
                 confidence_gauge,
                 big_five_chart,
                 dark_triad_chart,
-                threat_chart
+                threat_chart,
+                # NCI/Chase Hughes charts
+                bte_gauge,
+                blink_rate_chart,
+                fate_radar,
+                nci_deception_chart
             ])
 
         analyze_button.click(

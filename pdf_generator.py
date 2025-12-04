@@ -298,6 +298,134 @@ def generate_pdf_report(
             spaceAfter=10
         ))
         _add_analysis_content(story, analyses['liwc_linguistic_analysis'], styles)
+        story.append(PageBreak())
+
+    # Personality Synthesis (Big Five, Dark Triad, MBTI)
+    if analyses.get('personality_synthesis'):
+        story.append(Paragraph(
+            "PERSONALITY SYNTHESIS",
+            styles['FBISection']
+        ))
+        story.append(HRFlowable(
+            width="100%",
+            thickness=1,
+            color=colors.lightgrey,
+            spaceAfter=10
+        ))
+        _add_analysis_content(story, analyses['personality_synthesis'], styles)
+        story.append(PageBreak())
+
+    # Threat Assessment Synthesis
+    if analyses.get('threat_synthesis'):
+        story.append(Paragraph(
+            "THREAT ASSESSMENT",
+            styles['FBISection']
+        ))
+        story.append(HRFlowable(
+            width="100%",
+            thickness=1,
+            color=colors.lightgrey,
+            spaceAfter=10
+        ))
+        _add_analysis_content(story, analyses['threat_synthesis'], styles)
+        story.append(PageBreak())
+
+    # Differential Diagnosis
+    if analyses.get('differential'):
+        story.append(Paragraph(
+            "DIFFERENTIAL DIAGNOSIS",
+            styles['FBISection']
+        ))
+        story.append(HRFlowable(
+            width="100%",
+            thickness=1,
+            color=colors.lightgrey,
+            spaceAfter=10
+        ))
+        _add_analysis_content(story, analyses['differential'], styles)
+
+    # Contradictions Analysis
+    if analyses.get('contradictions'):
+        story.append(Paragraph(
+            "CONTRADICTIONS ANALYSIS",
+            styles['FBISection']
+        ))
+        story.append(HRFlowable(
+            width="100%",
+            thickness=1,
+            color=colors.lightgrey,
+            spaceAfter=10
+        ))
+        _add_analysis_content(story, analyses['contradictions'], styles)
+
+    # Red Team Analysis
+    if analyses.get('red_team'):
+        story.append(Paragraph(
+            "RED TEAM ANALYSIS (SELF-CRITIQUE)",
+            styles['FBISection']
+        ))
+        story.append(HRFlowable(
+            width="100%",
+            thickness=1,
+            color=colors.lightgrey,
+            spaceAfter=10
+        ))
+        _add_analysis_content(story, analyses['red_team'], styles)
+        story.append(PageBreak())
+
+    # NCI/Chase Hughes Deception Analysis
+    # Collect all NCI-related analyses from the result
+    nci_sections = []
+
+    # Check for NCI-specific keys in analyses
+    nci_keys = [
+        ('blink_rate', 'BLINK RATE ANALYSIS'),
+        ('bte_scoring', 'BEHAVIORAL TABLE OF ELEMENTS (BTE)'),
+        ('facial_etching', 'FACIAL ETCHING ANALYSIS'),
+        ('gestural_mismatch', 'GESTURAL MISMATCH DETECTION'),
+        ('stress_clusters', 'STRESS CLUSTER ANALYSIS'),
+        ('five_cs', 'FIVE C\'S FRAMEWORK'),
+        ('baseline_deviation', 'BASELINE DEVIATION ANALYSIS'),
+        ('detail_mountain_valley', 'DETAIL MOUNTAIN/VALLEY ANALYSIS'),
+        ('minimizing_language', 'MINIMIZING LANGUAGE ANALYSIS'),
+        ('linguistic_harvesting', 'LINGUISTIC HARVESTING'),
+        ('fate_model', 'FATE MODEL PROFILE'),
+        ('nci_deception_summary', 'NCI DECEPTION SUMMARY'),
+    ]
+
+    for key, title in nci_keys:
+        if analyses.get(key):
+            nci_sections.append((title, analyses[key]))
+
+    # Also check if NCI content is embedded in combined analyses
+    # by looking for NCI markers in the text
+    for key, content in analyses.items():
+        if isinstance(content, str):
+            if any(marker in content.upper() for marker in ['BTE SCORE', 'BLINK RATE', 'FIVE C', 'FATE MODEL', 'CHASE HUGHES', 'NCI']):
+                # Content has NCI markers - already included in other sections
+                pass
+
+    if nci_sections:
+        story.append(Paragraph(
+            "NCI/CHASE HUGHES DECEPTION ANALYSIS",
+            styles['FBISection']
+        ))
+        story.append(HRFlowable(
+            width="100%",
+            thickness=1,
+            color=colors.lightgrey,
+            spaceAfter=10
+        ))
+        story.append(Paragraph(
+            "Based on methodologies from The Behavior Ops Manual and Six-Minute X-Ray by Chase Hughes / NCI University",
+            styles['FBIMeta']
+        ))
+        story.append(Spacer(1, 10))
+
+        for title, content in nci_sections:
+            story.append(Paragraph(title, styles['FBISubsection']))
+            _add_analysis_content(story, content, styles)
+            story.append(Spacer(1, 10))
 
     # Footer
     story.append(Spacer(1, 30))

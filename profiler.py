@@ -293,6 +293,12 @@ class BehavioralProfiler:
             synthesis_model_name = get_model_info(self.model_config.synthesis_model)
             synthesis_display = synthesis_model_name.name if synthesis_model_name else self.model_config.synthesis_model
 
+            # Initialize sub-analyses dicts (populated if modular execution runs)
+            nci_sub_analyses = {}
+            differential_analysis = ''
+            contradictions_analysis = ''
+            red_team_analysis = ''
+
             # MODULAR EXECUTION: Use focused sub-analyses with native video
             if MODULAR_AVAILABLE:
                 self._update_progress(
@@ -331,9 +337,32 @@ class BehavioralProfiler:
                 liwc_analysis = formatted.get('audio', 'Integrated into audio sub-analyses')
                 fbi_profile = formatted.get('fbi_profile', 'Synthesis unavailable')
 
-                # Get sub-analysis data for visualizations
+                # Get sub-analysis data for visualizations and PDF
                 personality_analysis = formatted.get('personality', '')
                 threat_analysis = formatted.get('threat', '')
+                differential_analysis = formatted.get('differential', '')
+                contradictions_analysis = formatted.get('contradictions', '')
+                red_team_analysis = formatted.get('red_team', '')
+
+                # Get NCI/Chase Hughes sub-analyses for PDF report
+                nci_sub_analyses = {
+                    # Visual NCI analyses
+                    'blink_rate': formatted.get('blink_rate', ''),
+                    'bte_scoring': formatted.get('bte_scoring', ''),
+                    'facial_etching': formatted.get('facial_etching', ''),
+                    'gestural_mismatch': formatted.get('gestural_mismatch', ''),
+                    'stress_clusters': formatted.get('stress_clusters', ''),
+                    # Multimodal NCI analyses
+                    'five_cs': formatted.get('five_cs', ''),
+                    'baseline_deviation': formatted.get('baseline_deviation', ''),
+                    # Audio NCI analyses
+                    'detail_mountain_valley': formatted.get('detail_mountain_valley', ''),
+                    'minimizing_language': formatted.get('minimizing_language', ''),
+                    'linguistic_harvesting': formatted.get('linguistic_harvesting', ''),
+                    # Synthesis NCI analyses
+                    'fate_model': formatted.get('fate_model', ''),
+                    'nci_deception_summary': formatted.get('nci_deception_summary', ''),
+                }
 
                 # Calculate execution times from modular results
                 total_modular_time = sum(r.execution_time for r in modular_results.values())
@@ -476,8 +505,14 @@ ANALYSIS 4: LIWC-STYLE LINGUISTIC ANALYSIS
                     'audio_voice_analysis': audio_analysis,
                     'liwc_linguistic_analysis': liwc_analysis,
                     'fbi_behavioral_synthesis': fbi_profile,
+                    # Synthesis sub-analyses (for PDF report)
                     'personality_synthesis': personality_analysis if MODULAR_AVAILABLE else '',
-                    'threat_synthesis': threat_analysis if MODULAR_AVAILABLE else ''
+                    'threat_synthesis': threat_analysis if MODULAR_AVAILABLE else '',
+                    'differential': differential_analysis if MODULAR_AVAILABLE else '',
+                    'contradictions': contradictions_analysis if MODULAR_AVAILABLE else '',
+                    'red_team': red_team_analysis if MODULAR_AVAILABLE else '',
+                    # NCI/Chase Hughes sub-analyses (for PDF report)
+                    **nci_sub_analyses
                 },
                 'transcription': {
                     'transcript': transcription_result.transcript if transcription_result and transcription_result.success else '',

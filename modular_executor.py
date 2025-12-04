@@ -538,15 +538,30 @@ def format_modular_results(results: Dict[str, StageResult]) -> Dict[str, str]:
         visual = results['visual']
         formatted['essence'] = visual.combined_text
 
+        # Extract NCI visual sub-analyses for PDF
+        for key in ['blink_rate', 'bte_scoring', 'facial_etching', 'gestural_mismatch', 'stress_clusters']:
+            if key in visual.sub_results and visual.sub_results[key].success:
+                formatted[key] = visual.sub_results[key].result
+
     # Multimodal section
     if 'multimodal' in results:
         multimodal = results['multimodal']
         formatted['multimodal'] = multimodal.combined_text
 
+        # Extract NCI multimodal sub-analyses for PDF
+        for key in ['five_cs', 'baseline_deviation']:
+            if key in multimodal.sub_results and multimodal.sub_results[key].success:
+                formatted[key] = multimodal.sub_results[key].result
+
     # Audio section
     if 'audio' in results:
         audio = results['audio']
         formatted['audio'] = audio.combined_text
+
+        # Extract NCI audio sub-analyses for PDF
+        for key in ['detail_mountain_valley', 'minimizing_language', 'linguistic_harvesting']:
+            if key in audio.sub_results and audio.sub_results[key].success:
+                formatted[key] = audio.sub_results[key].result
 
     # Synthesis/FBI Profile section
     if 'synthesis' in results:
@@ -563,5 +578,10 @@ def format_modular_results(results: Dict[str, StageResult]) -> Dict[str, str]:
         formatted['differential'] = synthesis.sub_results.get('differential', SubAnalysisResult('', '', 'N/A', 0, False)).result
         formatted['contradictions'] = synthesis.sub_results.get('contradictions', SubAnalysisResult('', '', 'N/A', 0, False)).result
         formatted['red_team'] = synthesis.sub_results.get('red_team', SubAnalysisResult('', '', 'N/A', 0, False)).result
+
+        # Extract NCI synthesis sub-analyses for PDF
+        for key in ['fate_model', 'nci_deception_summary']:
+            if key in synthesis.sub_results and synthesis.sub_results[key].success:
+                formatted[key] = synthesis.sub_results[key].result
 
     return formatted
