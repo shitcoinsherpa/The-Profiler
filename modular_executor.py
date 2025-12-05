@@ -553,19 +553,11 @@ def format_modular_results(results: Dict[str, StageResult]) -> Dict[str, str]:
             if key in audio.sub_results and audio.sub_results[key].success:
                 formatted[key] = audio.sub_results[key].result
 
-        # Build LIWC-style section from linguistic sub-analyses
-        liwc_parts = []
-        if 'sociolinguistic' in audio.sub_results and audio.sub_results['sociolinguistic'].success:
-            liwc_parts.append("SOCIOLINGUISTIC ANALYSIS:\n" + audio.sub_results['sociolinguistic'].result)
-        if 'minimizing_language' in audio.sub_results and audio.sub_results['minimizing_language'].success:
-            liwc_parts.append("\nMINIMIZING LANGUAGE (NCI Method):\n" + audio.sub_results['minimizing_language'].result)
-        if 'linguistic_harvesting' in audio.sub_results and audio.sub_results['linguistic_harvesting'].success:
-            liwc_parts.append("\nLINGUISTIC HARVESTING (NCI Method):\n" + audio.sub_results['linguistic_harvesting'].result)
-
-        if liwc_parts:
-            formatted['liwc'] = "\n".join(liwc_parts)
+        # Use actual LIWC quantitative analysis result
+        if 'liwc' in audio.sub_results and audio.sub_results['liwc'].success:
+            formatted['liwc'] = audio.sub_results['liwc'].result
         else:
-            formatted['liwc'] = "LIWC-style linguistic analysis integrated into audio sub-analyses.\nSee Audio tab for voice characteristics, sociolinguistic profiling, and deception indicators."
+            formatted['liwc'] = "LIWC analysis not available. Audio analysis may have failed or been skipped."
 
     # Synthesis/FBI Profile section
     if 'synthesis' in results:

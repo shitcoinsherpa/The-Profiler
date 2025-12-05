@@ -134,6 +134,13 @@ VISUAL_BTE_SCORING_PROMPT = """Score behavioral indicators using the Behavioral 
 CHASE HUGHES BTE SCORING SYSTEM:
 Score individual stress/deception indicators. A cumulative score of 12+ suggests likely deception.
 
+CRITICAL BASELINE CONSIDERATION:
+- Self-adaptors (face touching, nose touching, grooming) are ONLY meaningful when compared to baseline
+- A subject who frequently touches their face at baseline should NOT be scored highly for face touching
+- The "Pinocchio Effect" (nose touching due to erectile tissue engorgement) is real but requires baseline
+- Only score indicators that represent CHANGE from comfortable baseline behavior
+- Without baseline, weight these indicators LOWER than other BTE items
+
 Score each observed indicator (0-3 points based on intensity):
 
 FACIAL INDICATORS:
@@ -167,6 +174,11 @@ Provide:
    - 12+: High deception probability
 4. HIGHEST SCORING MOMENTS: [timestamps/contexts]
 5. PRIMARY INDICATORS: List top 3 most prominent indicators
+6. COGNITIVE LOAD TIMELINE:
+   Map cognitive load intensity across the recording:
+   - [MM:SS]-[MM:SS]: LOW/MEDIUM/HIGH cognitive load - [context/topic]
+   - [MM:SS]-[MM:SS]: LOW/MEDIUM/HIGH cognitive load - [context/topic]
+   (Continue for each distinct segment. This enables timeline visualization.)
 
 Focus ONLY on BTE scoring - be systematic and precise."""
 
@@ -353,6 +365,18 @@ For key moments, assess:
 
 Flag SYNCHRONY BREAKS as high-priority investigative points:
 [TIMESTAMP] - AUDIO: [description] vs VISUAL: [description] - INTERPRETATION
+
+MICRO-TRIGGER WORD->GESTURE MAP:
+Create explicit associations between trigger words and immediate physical responses:
+Format: "[WORD/PHRASE]" -> [GESTURE] @ [TIMESTAMP]
+
+Examples:
+- "investment" -> collar touch @ 2:34
+- "my wife" -> gaze aversion + blink cluster @ 4:12  
+- "that night" -> postural shift backward @ 7:45
+
+List at least 5-10 trigger word->gesture associations.
+These are investigative gold - specific words that produced immediate stress responses.
 
 Gestural-verbal asynchrony is the highest indicator of rehearsed deception."""
 
@@ -727,6 +751,95 @@ Provide:
 - Psychological leverage points identified
 - Recommended influence approach based on linguistic profile"""
 
+AUDIO_LIWC_PROMPT = """Perform LIWC (Linguistic Inquiry and Word Count) quantitative analysis on the transcript.
+
+You are analyzing speech patterns using the LIWC framework. Provide ESTIMATED PERCENTAGES for each category
+based on word frequency analysis. While you cannot do exact counts, estimate proportions relative to total word count.
+
+TRANSCRIPT TO ANALYZE:
+{transcript}
+
+Provide quantitative LIWC metrics in this EXACT format:
+
+=== LIWC QUANTITATIVE ANALYSIS ===
+
+WORD COUNT STATISTICS:
+- Total Words (estimated): [number]
+- Words Per Sentence (avg): [number]
+- Six+ Letter Words: [X]%
+- Dictionary Words: [X]%
+
+PRONOUN ANALYSIS:
+- First Person Singular (I, me, my, mine): [X]%
+- First Person Plural (we, us, our, ours): [X]%
+- Second Person (you, your, yours): [X]%
+- Third Person (he, she, they, them, it): [X]%
+- Impersonal Pronouns (it, that, this): [X]%
+- TOTAL Pronouns: [X]%
+
+PSYCHOLOGICAL PROCESSES:
+
+Affective Processes: [X]%
+  - Positive Emotion: [X]%
+  - Negative Emotion: [X]%
+    - Anxiety: [X]%
+    - Anger: [X]%
+    - Sadness: [X]%
+
+Cognitive Processes: [X]%
+  - Insight (think, know, consider): [X]%
+  - Causation (because, effect, hence): [X]%
+  - Discrepancy (should, would, could): [X]%
+  - Tentative (maybe, perhaps, guess): [X]%
+  - Certainty (always, never, definitely): [X]%
+  - Differentiation (but, else, except): [X]%
+
+Social Processes: [X]%
+  - Family: [X]%
+  - Friends: [X]%
+  - Social References: [X]%
+
+PERSONAL CONCERNS:
+- Work: [X]%
+- Achievement: [X]%
+- Leisure: [X]%
+- Money: [X]%
+- Religion: [X]%
+- Death: [X]%
+
+LINGUISTIC DIMENSIONS:
+- Analytical Thinking (formal, logical): [score 0-100]
+- Clout (confidence, leadership): [score 0-100]
+- Authenticity (honest, personal): [score 0-100]
+- Emotional Tone (positive vs negative): [score 0-100, 50=neutral]
+
+TIME ORIENTATION:
+- Past Focus: [X]%
+- Present Focus: [X]%
+- Future Focus: [X]%
+
+DRIVES:
+- Affiliation (social bonding): [X]%
+- Achievement (success, winning): [X]%
+- Power (dominance, control): [X]%
+- Reward (positive goals): [X]%
+- Risk (danger, threat): [X]%
+
+DECEPTION INDICATORS (LIWC-based):
+- Self-Reference Ratio: [High/Normal/Low] - Low self-reference may indicate distancing from lies
+- Negative Emotion Density: [High/Normal/Low] - Liars show increased negative emotion
+- Cognitive Complexity: [High/Normal/Low] - Truthful accounts have higher complexity
+- Exclusive Words (but, except, without): [High/Normal/Low] - Low exclusive words suggest rehearsed narrative
+
+=== KEY FINDINGS ===
+List 3-5 psychologically significant patterns from the metrics above.
+
+=== INVESTIGATIVE RELEVANCE ===
+How do these linguistic patterns inform the behavioral profile?
+
+Be systematic. Provide actual percentage estimates based on your analysis of word frequencies."""
+
+
 
 # =============================================================================
 # SYNTHESIS SUB-PROMPTS (Stage 6 - run in parallel, then integrate)
@@ -802,16 +915,30 @@ For each relevant differential:
 
 Flag which considerations investigators must keep in mind."""
 
-SYNTHESIS_CONTRADICTIONS_PROMPT = """Analyze contradictions between modalities (Hot Spots).
+SYNTHESIS_CONTRADICTIONS_PROMPT = """Analyze contradictions between modalities and personality traits (Hot Spots).
 
 ANALYSIS DATA TO SYNTHESIZE:
 {previous_analyses}
 
-Based on the above analyses, identify conflicts between:
+PART A - MODALITY CONFLICTS:
+Identify conflicts between:
 - Visual vs Audio (confident voice but anxious eyes)
 - Verbal content vs Non-verbal behavior
 - Beginning vs End behavioral drift
 - Self-presentation vs Micro-expression leakage
+
+PART B - TRAIT CONTRADICTIONS:
+Identify and reconcile seemingly contradictory personality assessments:
+- High Openness vs Lone Wolf/Isolationist tendencies
+- Extroverted behavior vs Social Anxiety markers
+- Confident presentation vs Low Self-Esteem indicators
+- Empathic claims vs Narcissistic traits
+- Agreeable demeanor vs Manipulative patterns
+
+For seemingly contradictory traits, explain:
+1. APPARENT CONTRADICTION: [Trait A] vs [Trait B]
+2. RECONCILIATION: How both can coexist (e.g., "High Openness to IDEAS but low Openness to PEOPLE explains intellectual curiosity combined with social isolation")
+3. FUNCTIONAL EXPLANATION: What adaptive purpose does this combination serve?
 
 For EACH contradiction found:
 1. CONFLICTING SIGNALS: [specific observations]
@@ -822,14 +949,33 @@ Example resolution:
 BAD: "Subject shows both submissive and dominant behaviors."
 GOOD: "Subject employs Social Engineering - using vocal submission to appear non-threatening while maintaining physical dominance to control the interaction frame."
 
+BAD: "High Openness but also Lone Wolf tendencies."
+GOOD: "Subject demonstrates high Openness to EXPERIENCES and IDEAS (intellectual curiosity, philosophical discussion) while simultaneously showing low Agreeableness and selective social engagement. This combination suggests an intellectual who values depth over breadth in relationships - open-minded about concepts but choosy about people."
+
 Contradictions ARE the profile. Resolve them, don't just list them."""
 
-SYNTHESIS_RED_TEAM_PROMPT = """Perform Red Team analysis (self-critique).
+SYNTHESIS_RED_TEAM_PROMPT = """Perform Red Team analysis (self-critique) and Devil's Advocate check.
 
 ANALYSIS DATA TO SYNTHESIZE:
 {previous_analyses}
 
-Based on the above analyses, identify THREE reasons why this analysis might be WRONG:
+PART A - DEVIL'S ADVOCATE (Confirmation Bias Check):
+Challenge every major conclusion. For each key finding in the profile:
+
+1. CONTRADICTING EVIDENCE:
+   - What observed behaviors CONTRADICT our main conclusions?
+   - List specific evidence that argues AGAINST the profile
+
+2. ALTERNATIVE PROFILE:
+   - If we're completely wrong, what personality would these behaviors suggest?
+   - Present the most plausible alternative interpretation
+
+3. DISCONFIRMATION TEST:
+   - What evidence would DISPROVE our current assessment?
+   - What would we expect to see if our profile is incorrect?
+
+PART B - STANDARD RED TEAM ANALYSIS:
+Identify THREE reasons why this analysis might be WRONG:
 
 1. ENVIRONMENTAL/CONTEXTUAL FACTORS
    What situational elements could explain behaviors differently?
@@ -844,6 +990,11 @@ For each, explain:
 - The alternative interpretation
 - How it would change the profile
 - Probability this alternative is correct
+
+CONFIDENCE CALIBRATION:
+- Areas of HIGH confidence: [list]
+- Areas of LOW confidence (hedging recommended): [list]
+- Conclusions that should be treated as hypotheses only: [list]
 
 This ensures investigators don't over-rely on the profile."""
 
@@ -966,6 +1117,25 @@ Synthesize ALL NCI/Chase Hughes deception indicators into a unified assessment.
    - Topics triggering multiple stress indicators
    - Cross-modal stress alignment
 
+8. DECEPTION CONFLICT MATRIX:
+   Explicitly compare deception signals across modalities:
+
+   | Modality          | Deception Signal | Confidence | Key Evidence |
+   |-------------------|------------------|------------|--------------|
+   | Visual (BTE)      | LOW/MED/HIGH     | %          | [evidence]   |
+   | Blink Rate        | LOW/MED/HIGH     | %          | [evidence]   |
+   | Gestural Mismatch | LOW/MED/HIGH     | %          | [evidence]   |
+   | Vocal Indicators  | LOW/MED/HIGH     | %          | [evidence]   |
+   | Linguistic (LIWC) | LOW/MED/HIGH     | %          | [evidence]   |
+   | Detail Mt/Valley  | LOW/MED/HIGH     | %          | [evidence]   |
+
+   CONFLICTS IDENTIFIED:
+   - [Modality A] vs [Modality B]: [Describe conflict]
+   - Resolution: [Explain which signal is more reliable and why]
+
+   AGREEMENT AREAS:
+   - [Areas where multiple modalities converge on same conclusion]
+
 INTEGRATED DECEPTION ASSESSMENT:
 
 OVERALL DECEPTION PROBABILITY: LOW / MODERATE / HIGH / VERY HIGH
@@ -1062,6 +1232,8 @@ AUDIO_PROMPTS = {
     'detail_mountain_valley': AUDIO_DETAIL_MOUNTAIN_VALLEY_PROMPT,
     'minimizing_language': AUDIO_MINIMIZING_LANGUAGE_PROMPT,
     'linguistic_harvesting': AUDIO_LINGUISTIC_HARVESTING_PROMPT,
+    # LIWC quantitative analysis
+    'liwc': AUDIO_LIWC_PROMPT,
 }
 
 SYNTHESIS_PROMPTS = {
