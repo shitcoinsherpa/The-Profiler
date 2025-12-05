@@ -94,9 +94,8 @@ setup.bat
 
 **Linux/macOS:**
 ```bash
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+chmod +x setup.sh run.sh
+./setup.sh
 ```
 
 ### Step 4: Start the App
@@ -108,8 +107,7 @@ run.bat
 
 **Linux/macOS:**
 ```bash
-source venv/bin/activate
-python app.py
+./run.sh
 ```
 
 The app will open in your browser at `http://localhost:7860`
