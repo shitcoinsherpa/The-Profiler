@@ -3,8 +3,8 @@ Model configuration for the behavioral profiling system.
 Defines available models and their capabilities for each analysis stage.
 """
 
-from typing import List, Dict, Optional
-from dataclasses import dataclass, field
+from typing import List, Optional
+from dataclasses import dataclass
 
 
 @dataclass
@@ -20,53 +20,8 @@ class ModelInfo:
     description: str = ""
 
 
-# Available models organized by capability
+# Available models - Gemini only (native video support required)
 VISION_MODELS: List[ModelInfo] = [
-    ModelInfo(
-        id="openai/gpt-4.1",
-        name="GPT-4.1",
-        provider="OpenAI",
-        supports_images=True,
-        supports_audio=False,
-        cost_tier="premium",
-        description="Latest GPT-4 with strong vision capabilities"
-    ),
-    ModelInfo(
-        id="openai/gpt-4o",
-        name="GPT-4o",
-        provider="OpenAI",
-        supports_images=True,
-        supports_audio=False,
-        cost_tier="standard",
-        description="Optimized GPT-4 with vision"
-    ),
-    ModelInfo(
-        id="openai/gpt-4o-mini",
-        name="GPT-4o Mini",
-        provider="OpenAI",
-        supports_images=True,
-        supports_audio=False,
-        cost_tier="budget",
-        description="Fast and affordable GPT-4o variant"
-    ),
-    ModelInfo(
-        id="anthropic/claude-sonnet-4",
-        name="Claude Sonnet 4",
-        provider="Anthropic",
-        supports_images=True,
-        supports_audio=False,
-        cost_tier="standard",
-        description="Anthropic's balanced model with strong analysis"
-    ),
-    ModelInfo(
-        id="anthropic/claude-opus-4",
-        name="Claude Opus 4",
-        provider="Anthropic",
-        supports_images=True,
-        supports_audio=False,
-        cost_tier="premium",
-        description="Anthropic's most capable model"
-    ),
     ModelInfo(
         id="google/gemini-2.5-flash",
         name="Gemini 2.5 Flash",
@@ -88,16 +43,6 @@ VISION_MODELS: List[ModelInfo] = [
         description="Powerful multimodal with audio/video support"
     ),
     ModelInfo(
-        id="google/gemini-2.0-flash",
-        name="Gemini 2.0 Flash",
-        provider="Google",
-        supports_images=True,
-        supports_audio=True,
-        supports_video=True,
-        cost_tier="budget",
-        description="Previous gen multimodal, still capable"
-    ),
-    ModelInfo(
         id="google/gemini-3-pro-preview",
         name="Gemini 3 Pro Preview",
         provider="Google",
@@ -109,81 +54,13 @@ VISION_MODELS: List[ModelInfo] = [
     ),
 ]
 
-# Audio-capable models (subset of above that support audio)
+# Audio-capable models (all Gemini models support audio)
 AUDIO_MODELS: List[ModelInfo] = [
     model for model in VISION_MODELS if model.supports_audio
 ]
 
-# Text-only synthesis models (don't need vision for final synthesis)
-SYNTHESIS_MODELS: List[ModelInfo] = [
-    ModelInfo(
-        id="openai/gpt-4.1",
-        name="GPT-4.1",
-        provider="OpenAI",
-        supports_images=True,
-        cost_tier="premium",
-        description="Latest GPT-4 for synthesis"
-    ),
-    ModelInfo(
-        id="openai/gpt-4o",
-        name="GPT-4o",
-        provider="OpenAI",
-        supports_images=True,
-        cost_tier="standard",
-        description="Optimized GPT-4"
-    ),
-    ModelInfo(
-        id="openai/gpt-4o-mini",
-        name="GPT-4o Mini",
-        provider="OpenAI",
-        supports_images=True,
-        cost_tier="budget",
-        description="Fast and affordable"
-    ),
-    ModelInfo(
-        id="anthropic/claude-sonnet-4",
-        name="Claude Sonnet 4",
-        provider="Anthropic",
-        supports_images=True,
-        cost_tier="standard",
-        description="Strong analytical synthesis"
-    ),
-    ModelInfo(
-        id="anthropic/claude-opus-4",
-        name="Claude Opus 4",
-        provider="Anthropic",
-        supports_images=True,
-        cost_tier="premium",
-        description="Most capable synthesis"
-    ),
-    ModelInfo(
-        id="google/gemini-2.5-pro",
-        name="Gemini 2.5 Pro",
-        provider="Google",
-        supports_images=True,
-        supports_audio=True,
-        cost_tier="standard",
-        description="Google's flagship"
-    ),
-    ModelInfo(
-        id="google/gemini-2.5-flash",
-        name="Gemini 2.5 Flash",
-        provider="Google",
-        supports_images=True,
-        supports_audio=True,
-        cost_tier="budget",
-        description="Fast Google model"
-    ),
-    ModelInfo(
-        id="google/gemini-3-pro-preview",
-        name="Gemini 3 Pro Preview",
-        provider="Google",
-        supports_images=True,
-        supports_audio=True,
-        cost_tier="premium",
-        description="Google's flagship frontier model"
-    ),
-]
+# Synthesis models (same as vision - all support native video)
+SYNTHESIS_MODELS: List[ModelInfo] = VISION_MODELS.copy()
 
 
 # ==================================================================================
@@ -196,24 +73,9 @@ DEV_META_MODELS: List[ModelInfo] = [
         provider="Google",
         supports_images=True,
         supports_audio=True,
+        supports_video=True,
         cost_tier="premium",
         description="Recommended for meta-analysis (1M context)"
-    ),
-    ModelInfo(
-        id="anthropic/claude-opus-4",
-        name="Claude Opus 4",
-        provider="Anthropic",
-        supports_images=True,
-        cost_tier="premium",
-        description="Alternative for meta-analysis"
-    ),
-    ModelInfo(
-        id="openai/gpt-4.1",
-        name="GPT-4.1",
-        provider="OpenAI",
-        supports_images=True,
-        cost_tier="premium",
-        description="Alternative for meta-analysis"
     ),
 ]
 
@@ -245,18 +107,8 @@ def get_model_choices_for_stage(stage: str) -> List[tuple]:
     Returns:
         List of (display_name, model_id) tuples for Gradio dropdown
     """
-    if stage == "essence":
-        # Vision models for Sam Christensen analysis
-        models = VISION_MODELS
-    elif stage in ("multimodal", "audio", "liwc"):
-        # Must support audio for these stages
-        models = AUDIO_MODELS
-    elif stage == "synthesis":
-        # Any model works for text synthesis
-        models = SYNTHESIS_MODELS
-    else:
-        models = VISION_MODELS
-
+    # All stages use the same Gemini models (native video support)
+    models = VISION_MODELS
     return [(f"{m.name} ({m.provider}) - {m.cost_tier}", m.id) for m in models]
 
 
@@ -265,13 +117,12 @@ def get_model_info(model_id: str) -> Optional[ModelInfo]:
     Get model info by ID.
 
     Args:
-        model_id: The model identifier (e.g., 'openai/gpt-4.1')
+        model_id: The model identifier (e.g., 'google/gemini-2.5-flash')
 
     Returns:
         ModelInfo object or None if not found
     """
-    all_models = VISION_MODELS + SYNTHESIS_MODELS
-    for model in all_models:
+    for model in VISION_MODELS:
         if model.id == model_id:
             return model
     return None
@@ -292,13 +143,7 @@ def validate_model_for_stage(model_id: str, stage: str) -> tuple[bool, str]:
     if not model:
         return False, f"Unknown model: {model_id}"
 
-    if stage == "essence":
-        if not model.supports_images:
-            return False, f"{model.name} does not support image analysis"
-    elif stage in ("multimodal", "audio", "liwc"):
-        if not model.supports_audio:
-            return False, f"{model.name} does not support audio analysis. Use a Gemini model."
-
+    # All Gemini models support all stages (video, audio, images)
     return True, ""
 
 
@@ -311,7 +156,7 @@ def get_default_model_for_stage(stage: str) -> str:
         "liwc": DEFAULT_MODEL_CONFIG.liwc_model,
         "synthesis": DEFAULT_MODEL_CONFIG.synthesis_model,
     }
-    return defaults.get(stage, "openai/gpt-4.1")
+    return defaults.get(stage, "google/gemini-3-pro-preview")
 
 
 # Export dropdown choices for UI

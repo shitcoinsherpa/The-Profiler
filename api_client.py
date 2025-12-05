@@ -204,7 +204,7 @@ class OpenRouterClient:
         self,
         prompt: str,
         base64_images: List[str],
-        model: str = "openai/gpt-4.1",
+        model: str = "google/gemini-3-pro-preview",
         max_tokens: int = 3000,
         temperature: float = 0.7,
         timeout: int = 120,
@@ -216,7 +216,7 @@ class OpenRouterClient:
         Args:
             prompt: Text prompt for analysis
             base64_images: List of base64-encoded JPEG strings
-            model: Model ID to use (default: openai/gpt-4.1)
+            model: Model ID to use (default: google/gemini-3-pro-preview)
             max_tokens: Maximum tokens in response
             temperature: Sampling temperature (0-1)
             timeout: Request timeout in seconds
@@ -327,7 +327,7 @@ class OpenRouterClient:
         self,
         prompt: str,
         previous_analyses: str,
-        model: str = "openai/gpt-4.1",
+        model: str = "google/gemini-3-pro-preview",
         max_tokens: int = 4000,
         temperature: float = 0.7,
         timeout: int = 120,
@@ -340,7 +340,7 @@ class OpenRouterClient:
         Args:
             prompt: System prompt for synthesis
             previous_analyses: Combined text from previous analyses
-            model: Model ID to use (default: openai/gpt-4.1)
+            model: Model ID to use (default: google/gemini-3-pro-preview)
             max_tokens: Maximum tokens in response
             temperature: Sampling temperature (0-1)
             timeout: Request timeout in seconds
@@ -403,7 +403,7 @@ class OpenRouterClient:
         Internal method to send multimodal request with images, audio, and/or video.
 
         Args:
-            model: Model identifier (e.g., "openai/gpt-5.1")
+            model: Model identifier (e.g., "google/gemini-2.5-pro")
             prompt: Text prompt
             base64_images: List of base64-encoded images (optional)
             base64_audio: Base64-encoded audio (optional)

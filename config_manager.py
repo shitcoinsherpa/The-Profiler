@@ -216,7 +216,7 @@ OPENROUTER_API_KEY=
 
             # Make a minimal test request
             response = client.chat.completions.create(
-                model="openai/gpt-3.5-turbo",  # Use cheapest model for testing
+                model="google/gemini-2.5-flash",  # Use cheapest model for testing
                 messages=[{"role": "user", "content": "test"}],
                 max_tokens=5
             )

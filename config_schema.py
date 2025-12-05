@@ -109,7 +109,7 @@ class ModelDefaults(BaseModel):
     """Default model selections for each stage."""
 
     essence_model: str = Field(
-        default="openai/gpt-4.1",
+        default="google/gemini-3-pro-preview",
         description="Model for Sam Christensen essence analysis"
     )
     multimodal_model: str = Field(
@@ -125,7 +125,7 @@ class ModelDefaults(BaseModel):
         description="Model for LIWC linguistic analysis"
     )
     synthesis_model: str = Field(
-        default="openai/gpt-4.1",
+        default="google/gemini-3-pro-preview",
         description="Model for FBI behavioral synthesis"
     )
 

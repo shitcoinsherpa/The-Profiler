@@ -44,11 +44,11 @@ logger = logging.getLogger(__name__)
 
 class ModelConfig(BaseModel):
     """Model selection for analysis stages."""
-    essence_model: str = Field(default="openai/gpt-4.1", description="Model for Sam Christensen analysis")
+    essence_model: str = Field(default="google/gemini-3-pro-preview", description="Model for Sam Christensen analysis")
     multimodal_model: str = Field(default="google/gemini-2.5-flash", description="Model for multimodal analysis")
     audio_model: str = Field(default="google/gemini-2.5-flash", description="Model for audio analysis")
     liwc_model: str = Field(default="google/gemini-2.5-flash", description="Model for LIWC analysis")
-    synthesis_model: str = Field(default="openai/gpt-4.1", description="Model for FBI synthesis")
+    synthesis_model: str = Field(default="google/gemini-3-pro-preview", description="Model for FBI synthesis")
 
 
 class AnalysisRequest(BaseModel):
@@ -236,11 +236,11 @@ Provides programmatic access to:
         subject_name: Optional[str] = Form(None),
         subject_notes: Optional[str] = Form(None),
         use_cache: bool = Form(True),
-        essence_model: str = Form(default="openai/gpt-4.1"),
+        essence_model: str = Form(default="google/gemini-3-pro-preview"),
         multimodal_model: str = Form(default="google/gemini-2.5-flash"),
         audio_model: str = Form(default="google/gemini-2.5-flash"),
         liwc_model: str = Form(default="google/gemini-2.5-flash"),
-        synthesis_model: str = Form(default="openai/gpt-4.1")
+        synthesis_model: str = Form(default="google/gemini-3-pro-preview")
     ):
         """
         Analyze an uploaded video file.
