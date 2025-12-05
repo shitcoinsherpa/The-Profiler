@@ -84,82 +84,95 @@ class ModularAnalysisExecutor:
         model: str,
         video: str = None,
         audio: str = None,
-        timeout: int = 90
+        timeout: int = 90,
+        max_retries: int = 3
     ) -> SubAnalysisResult:
-        """Run a single sub-analysis."""
+        """Run a single sub-analysis with retry logic to ensure completion."""
         start_time = time.time()
         response_format = None  # Not using structured output
+        last_error = None
 
-        try:
-            if video and audio:
-                # Full multimodal call with native video + audio
-                result = self.client.analyze_with_multimodal(
-                    prompt=prompt,
-                    base64_video=video,
-                    base64_audio=audio,
-                    model=model,
-                    max_tokens=self.max_tokens_sub,
-                    temperature=self.temperature,
-                    timeout=timeout,
-                    response_format=response_format
+        for attempt in range(max_retries):
+            try:
+                if attempt > 0:
+                    wait_time = 2 * attempt  # Exponential backoff
+                    logger.info(f"Retry {attempt}/{max_retries} for '{name}' sub-analysis (waiting {wait_time}s)")
+                    time.sleep(wait_time)
+
+                if video and audio:
+                    # Full multimodal call with native video + audio
+                    result = self.client.analyze_with_multimodal(
+                        prompt=prompt,
+                        base64_video=video,
+                        base64_audio=audio,
+                        model=model,
+                        max_tokens=self.max_tokens_sub,
+                        temperature=self.temperature,
+                        timeout=timeout,
+                        response_format=response_format
+                    )
+                elif video:
+                    # Video-only call (Gemini native video handling)
+                    result = self.client.analyze_with_multimodal(
+                        prompt=prompt,
+                        base64_video=video,
+                        model=model,
+                        max_tokens=self.max_tokens_sub,
+                        temperature=self.temperature,
+                        timeout=timeout,
+                        response_format=response_format
+                    )
+                elif audio:
+                    # Audio call
+                    result = self.client.analyze_audio(
+                        prompt=prompt,
+                        base64_audio=audio,
+                        model=model,
+                        max_tokens=self.max_tokens_sub,
+                        temperature=self.temperature,
+                        timeout=timeout,
+                        response_format=response_format
+                    )
+                else:
+                    # Text-only call (synthesis)
+                    result = self.client.synthesize_text(
+                        prompt=prompt,
+                        previous_analyses="",  # Context already in prompt
+                        model=model,
+                        max_tokens=self.max_tokens_synthesis,
+                        temperature=self.temperature,
+                        timeout=timeout,
+                        response_format=response_format
+                    )
+
+                # Success - return result
+                execution_time = time.time() - start_time
+                logger.info(f"Sub-analysis '{name}' completed in {execution_time:.2f}s")
+
+                return SubAnalysisResult(
+                    name=name,
+                    stage=stage,
+                    result=result,
+                    execution_time=execution_time,
+                    success=True
                 )
-            elif video:
-                # Video-only call (Gemini native video handling)
-                result = self.client.analyze_with_multimodal(
-                    prompt=prompt,
-                    base64_video=video,
-                    model=model,
-                    max_tokens=self.max_tokens_sub,
-                    temperature=self.temperature,
-                    timeout=timeout,
-                    response_format=response_format
-                )
-            elif audio:
-                # Audio call
-                result = self.client.analyze_audio(
-                    prompt=prompt,
-                    base64_audio=audio,
-                    model=model,
-                    max_tokens=self.max_tokens_sub,
-                    temperature=self.temperature,
-                    timeout=timeout,
-                    response_format=response_format
-                )
-            else:
-                # Text-only call (synthesis)
-                result = self.client.synthesize_text(
-                    prompt=prompt,
-                    previous_analyses="",  # Context already in prompt
-                    model=model,
-                    max_tokens=self.max_tokens_synthesis,
-                    temperature=self.temperature,
-                    timeout=timeout,
-                    response_format=response_format
-                )
 
-            execution_time = time.time() - start_time
-            logger.info(f"Sub-analysis '{name}' completed in {execution_time:.2f}s")
+            except Exception as e:
+                last_error = e
+                logger.warning(f"Sub-analysis '{name}' attempt {attempt + 1}/{max_retries} failed: {e}")
 
-            return SubAnalysisResult(
-                name=name,
-                stage=stage,
-                result=result,
-                execution_time=execution_time,
-                success=True
-            )
+        # All retries exhausted
+        execution_time = time.time() - start_time
+        logger.error(f"Sub-analysis '{name}' failed after {max_retries} attempts: {last_error}")
 
-        except Exception as e:
-            execution_time = time.time() - start_time
-            logger.error(f"Sub-analysis '{name}' failed: {e}")
-
-            return SubAnalysisResult(
-                name=name,
-                stage=stage,
-                result=f"ERROR: {str(e)}",
-                execution_time=execution_time,
-                success=False,
-                error=str(e)
-            )
+        return SubAnalysisResult(
+            name=name,
+            stage=stage,
+            result=f"ERROR after {max_retries} retries: {str(last_error)}",
+            execution_time=execution_time,
+            success=False,
+            error=str(last_error)
+        )
 
     def _run_parallel_sub_analyses(
         self,
@@ -546,14 +559,23 @@ def format_modular_results(results: Dict[str, StageResult]) -> Dict[str, str]:
     # Audio section
     if 'audio' in results:
         audio = results['audio']
-        formatted['audio'] = audio.combined_text
+
+        # Build audio output EXCLUDING liwc (which goes in its own section)
+        audio_parts = []
+        for name, result in audio.sub_results.items():
+            if name != 'liwc' and result.success:  # Exclude LIWC from audio accordion
+                audio_parts.append(f"=== {name.upper().replace('_', ' ')} ===
+{result.result}")
+        formatted['audio'] = "
+
+".join(audio_parts) if audio_parts else audio.combined_text
 
         # Extract NCI audio sub-analyses for PDF
         for key in ['detail_mountain_valley', 'minimizing_language', 'linguistic_harvesting']:
             if key in audio.sub_results and audio.sub_results[key].success:
                 formatted[key] = audio.sub_results[key].result
 
-        # Use actual LIWC quantitative analysis result
+        # Use actual LIWC quantitative analysis result (separate accordion)
         if 'liwc' in audio.sub_results and audio.sub_results['liwc'].success:
             formatted['liwc'] = audio.sub_results['liwc'].result
         else:

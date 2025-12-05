@@ -67,17 +67,40 @@ Rate each dimension 0-100:
 
 Provide specific visual evidence for each assessment."""
 
-VISUAL_DECEPTION_PROMPT = """Assess deception indicators from visual evidence.
+VISUAL_DECEPTION_PROMPT = """Assess deception indicators from visual evidence with duration analysis.
+
+DURATION CLASSIFICATION (Critical for authenticity):
+- MICRO-EXPRESSION: <0.5 seconds = Emotional LEAKAGE (genuine, suppressed)
+- NORMAL EXPRESSION: 0.5-4 seconds = Typical genuine emotion
+- FROZEN EXPRESSION: >4-5 seconds = FABRICATED/performed emotion
 
 Analyze:
 1. MICRO-EXPRESSIONS: Brief emotional flashes contradicting stated affect
+   - Duration (onset-apex-offset timing)
+   - Classify: Leakage vs Suppression vs Normal
 2. GAZE PATTERNS: Avoidance, excessive contact, scanning behavior
 3. FACIAL INCONGRUENCE: Mismatched upper/lower face expressions
 4. SUPPRESSION MARKERS: AU24 (lip press), AU17 (chin raise), partial expressions
-5. TIMING: Delayed or premature emotional displays
+5. TIMING ANALYSIS:
+   - Expression ONSET: Before, during, or after verbal statement?
+   - Expression DURATION: <0.5s / 0.5-4s / >4s
+   - Natural emotions peak and fade; fabricated ones appear suddenly and hold
+
+6. OCULAR ACCESS CUES (NLP Eye Patterns):
+   Track eye movement direction relative to verbal content:
+   - Up-Right: Visual Constructed (imagining/fabricating)
+   - Up-Left: Visual Remembered (recalling truth)
+   - Lateral-Right: Auditory Constructed (fabricating dialogue)
+   - Lateral-Left: Auditory Remembered (recalling actual conversation)
+   - Down-Right: Kinesthetic (accessing feelings)
+   - Down-Left: Internal Dialogue (self-talk)
+   
+   FLAG: Visual Constructed (Up-Right) during factual claims = HIGH deception indicator
 
 Provide:
-- Specific deception indicators observed (with frame/time reference)
+- Specific deception indicators with DURATION and timestamp
+- Expression duration classification for each emotional display
+- Ocular access patterns mapped to content truthfulness
 - Authenticity assessment: GENUINE / PERFORMED / MIXED
 - Confidence level for deception assessment
 - Hot spots requiring investigative attention
@@ -122,9 +145,24 @@ Analyze the subject's blinking patterns throughout the video:
 Provide:
 - Estimated baseline blink rate: [X] BPM
 - Peak elevated rate observed: [X] BPM
-- Moments of elevated blinking: [timestamp/topic]
+- **BASELINE-TO-SPIKE DELTA**: [X]% increase from baseline
+  (Example: Baseline 18 BPM -> Peak 62 BPM = 244% increase = HIGH STRESS)
+- Delta Classification:
+  - <50% increase: Normal variation
+  - 50-150% increase: Moderate stress
+  - 150-300% increase: HIGH stress (investigate topic)
+  - >300% increase: EXTREME stress (critical flag)
+- Moments of elevated blinking: [timestamp/topic/delta%]
 - Blink rate assessment: NORMAL / ELEVATED / HIGHLY ELEVATED
 - Stress correlation confidence: Low/Medium/High
+
+TIMELINE FORMAT:
+[MM:SS] - [BPM] - [Delta from baseline] - [Topic/Context]
+
+Example:
+0:00-0:30 - 18 BPM - BASELINE - Introduction
+0:45 - 45 BPM - +150% SPIKE - "When asked about the money"
+1:12 - 22 BPM - +22% - General discussion
 
 Focus ONLY on blink rate analysis - be precise with observations."""
 
@@ -378,6 +416,37 @@ Examples:
 List at least 5-10 trigger word->gesture associations.
 These are investigative gold - specific words that produced immediate stress responses.
 
+**GESTURAL LATENCY ANALYSIS (Critical):**
+
+Measure the TIME DELAY between verbal statements and accompanying gestures:
+
+LATENCY CLASSIFICATION:
+- NATURAL (0-200ms): Gesture precedes or accompanies word - AUTHENTIC
+- DELAYED (200-500ms): Gesture follows word slightly - POSSIBLE REHEARSAL  
+- FABRICATED (500ms+): Gesture notably trails speech - LIKELY DECEPTIVE
+
+For each major claim or emphatic statement, document:
+1. TIMESTAMP of verbal statement
+2. TIMESTAMP of accompanying gesture  
+3. LATENCY in milliseconds (estimate)
+4. CLASSIFICATION: Natural/Delayed/Fabricated
+5. What claim was being made?
+
+LATENCY LOG FORMAT:
+[MM:SS] "[statement]" -> [gesture type] @ [+Xms delay] = [classification]
+
+Example entries:
+- 1:23 "I absolutely did not take that money" -> emphatic hand chop @ +650ms = FABRICATED
+- 2:45 "It was my idea" -> pointing gesture @ +100ms = NATURAL
+- 3:12 "We had no knowledge" -> head shake @ +420ms = DELAYED
+
+BASELINE LATENCY: Measure latency on non-sensitive topics first to establish subject's natural timing.
+
+LATENCY SUMMARY:
+- Topics with highest latency (most likely fabricated): [list]
+- Average latency on sensitive vs non-sensitive topics: [comparison]
+- Deception probability based on latency patterns: [Low/Medium/High]
+
 Gestural-verbal asynchrony is the highest indicator of rehearsed deception."""
 
 MULTIMODAL_ENVIRONMENT_PROMPT = """Analyze environmental and contextual elements.
@@ -565,7 +634,7 @@ Estimate:
 
 Be specific about linguistic evidence for each conclusion."""
 
-AUDIO_DECEPTION_VOICE_PROMPT = """Assess vocal deception indicators.
+AUDIO_DECEPTION_VOICE_PROMPT = """Assess vocal deception indicators with COGNITIVE LOAD ANALYSIS focus.
 
 Analyze:
 1. VOCAL STRESS: Pitch changes, tension, shakiness, throat clearing
@@ -574,13 +643,38 @@ Analyze:
 4. TENSE SHIFTS: Past/present inconsistencies
 5. DETAIL PATTERNS: Over-elaborate vs sparse in specific sections
 
+**COGNITIVE LOAD INDICATORS (Critical):**
+6. SYNTAX BREAKDOWN POINTS:
+   - Where does sentence structure collapse?
+   - Where do complex sentences become fragmented?
+   - Where does grammar fail under mental strain?
+
+7. SPECIFICITY-TO-PHILOSOPHY PIVOTS:
+   - Track when subject shifts from specific numbers/facts to general philosophy
+   - "We made $2.3 million" -> "But what really matters is the vision"
+   - Note exact timestamps of these pivots - they mark cognitive stress points
+
+8. VERBAL PROCESSING OVERLOAD:
+   - Unusual word choices (wrong register, malapropisms)
+   - Sentence repairs mid-thought
+   - Loss of pronoun consistency within same sentence
+   - Abandoning complex answers for simple deflections
+
+9. RESPONSE LATENCY PATTERNS:
+   - Which topics produce immediate fluent answers?
+   - Which topics produce delayed, fragmented responses?
+   - Compare baseline response time to topic-specific delays
+
 For each indicator, provide:
 - Timestamp reference
 - Specific observation
+- Cognitive Load Level: Low/Moderate/High/Overloaded
 - Deception probability: Low/Medium/High
 - Confidence in assessment
 
-Note areas where subject seems most/least truthful."""
+CRITICAL: Identify the 3 MOMENTS OF HIGHEST COGNITIVE LOAD - these are prime deception investigation points.
+
+Note areas where subject seems most/least truthful and WHY based on cognitive indicators."""
 
 
 # =============================================================================
@@ -830,6 +924,33 @@ DECEPTION INDICATORS (LIWC-based):
 - Negative Emotion Density: [High/Normal/Low] - Liars show increased negative emotion
 - Cognitive Complexity: [High/Normal/Low] - Truthful accounts have higher complexity
 - Exclusive Words (but, except, without): [High/Normal/Low] - Low exclusive words suggest rehearsed narrative
+
+=== PRONOUN DRIFT TRACKER (Critical Deception Indicator) ===
+
+Track PRONOUN SHIFTS across the transcript timeline:
+- When does subject shift from "I" to "we"? (diffusing personal responsibility)
+- When does subject shift from "we" to "they"? (distancing from group)
+- When does subject use passive voice? (removing agency)
+- When does subject switch from naming people to "someone" or "people"?
+
+DRIFT PATTERN LOG:
+For each significant pronoun shift, document:
+1. TIMESTAMP/CONTEXT: When in the narrative did this occur?
+2. BEFORE: What pronoun was being used?
+3. AFTER: What did it shift to?
+4. TOPIC: What subject was being discussed?
+5. DECEPTION PROBABILITY: Based on topic sensitivity
+
+Example shifts to flag:
+- "I made the decision" -> "The decision was made" (passive distancing)
+- "I met with John" -> "We met with some people" (specificity reduction)
+- "My team did X" -> "They did X" (disowning responsibility)
+- "I told her" -> "It was communicated" (bureaucratic distancing)
+
+PRONOUN DRIFT SUMMARY:
+- Total significant shifts detected: [number]
+- Topics with highest drift frequency: [list]
+- Deception probability assessment: [Low/Medium/High]
 
 === KEY FINDINGS ===
 List 3-5 psychologically significant patterns from the metrics above.
@@ -1170,12 +1291,22 @@ ALL ANALYSIS DATA:
 SYNTHESIS SUB-ANALYSES:
 {synthesis_results}
 
+**CRITICAL WEIGHTING INSTRUCTION:**
+When integrating findings, apply the following evidence hierarchy:
+- BODY LANGUAGE signals carry 5x weight of verbal content
+- MICRO-EXPRESSIONS carry 3x weight of macro-expressions  
+- INVOLUNTARY behaviors (blink rate spikes, fidgeting) outweigh voluntary
+- CROSS-MODAL CONFLICTS (gesture vs words) are primary deception indicators
+- Words alone are the LEAST reliable indicator
+
+When verbal content contradicts non-verbal signals, ALWAYS trust the body.
+
 Integrate ALL above into the final profile:
 
 EXECUTIVE SUMMARY:
 - Subject overview (2-3 sentences)
 - Primary risk classification
-- Key behavioral finding
+- Key behavioral finding (prioritize body language over verbal claims)
 
 OPERATIONAL RECOMMENDATIONS:
 - Optimal interview approach (rapport-based vs confrontational)
@@ -1185,9 +1316,14 @@ OPERATIONAL RECOMMENDATIONS:
 - Predicted responses to various tactics
 
 INVESTIGATIVE PRIORITIES:
-- Key areas to investigate further
+- Key areas to investigate further (flag where body contradicted words)
 - Associates/relationships to examine
 - Evidence sources based on personality
+
+BODY-VERBAL CONFLICT LOG:
+- List each instance where non-verbal signals contradicted verbal claims
+- For each conflict: what they said vs what their body revealed
+- Assign probability weight to body signal interpretation
 
 Synthesize ALL previous analyses into actionable intelligence.
 Do NOT repeat detailed findings - reference and integrate them."""
