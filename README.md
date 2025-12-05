@@ -1,93 +1,195 @@
-# Behavioral Profiling System
+# The Profiler - FBI-Style Behavioral Analysis System
 
-Multimodal AI-powered psychological assessment tool that analyzes video content to generate behavioral profiles.
+AI-powered psychological profiling tool that analyzes video content to generate comprehensive behavioral assessments using multimodal analysis.
 
 Created by [@LLMSherpa](https://x.com/LLMSherpa)
 
 ## What It Does
 
-Upload a video (or paste a YouTube/Twitter/TikTok URL) and the system runs it through a 6-stage analysis pipeline:
+Upload a video file (or paste a YouTube/Twitter/TikTok URL) and the system runs a 6-stage analysis pipeline:
 
-1. **Video** - Loads and validates the video file
-2. **Audio** - Extracts audio track and transcribes speech
-3. **Visual** - Analyzes facial expressions, body language, behavioral archetypes
-4. **Multimodal** - Cross-references visual and audio cues, detects performance vs authenticity
-5. **Voice** - Examines vocal patterns, accent, paralinguistic markers
-6. **Synthesis** - Combines all analyses into a final behavioral profile
+| Step | Name | Description |
+|------|------|-------------|
+| 1 | **Video** | Load, validate, and prepare video for processing |
+| 2 | **Audio** | Extract audio track and transcribe speech |
+| 3 | **Visual** | Analyze facial expressions, body language, behavioral archetypes |
+| 4 | **Multi** | Cross-reference visual and audio cues, detect performance vs authenticity |
+| 5 | **Voice** | Examine vocal patterns, accent, paralinguistic markers |
+| 6 | **Synth** | Combine all analyses into final FBI-style behavioral profile |
 
 ## Screenshots
 
 ### Main Interface
 ![Main Interface](https://github.com/shitcoinsherpa/The-Profiler/blob/main/screenshots/main1.png)
 
-Upload a video file or import from URL. The interface shows video metadata (duration, resolution, file size) and validates requirements before processing. A 6-step progress bar tracks the analysis pipeline in real-time.
+Upload a video or import from URL. The 6-step progress bar tracks analysis in real-time.
 
-### Analysis Components - Visual & Multimodal
-![Visual & Multimodal Analysis](https://github.com/shitcoinsherpa/The-Profiler/blob/main/screenshots/analysis1.png)
+### Analysis Components
+![Analysis Components](https://github.com/shitcoinsherpa/The-Profiler/blob/main/screenshots/analysis1.png)
 
-The **Behavioral Archetype** section identifies the subject's primary archetype (e.g., "The Narcissistic Operator") with timestamped behavioral evidence. The **Multimodal Analysis** classifies the interaction type (staged performance vs genuine), analyzes camera awareness, and performs cross-modal synchronization between voice tone and facial expressions.
-
-### Analysis Components - Audio & Linguistic
-![Audio & Linguistic Analysis](https://github.com/shitcoinsherpa/The-Profiler/blob/main/screenshots/analysis2.png)
-
-**Voice Forensics** profiles the speaker's accent, speech patterns, and cultural influences (e.g., "Internet/Content Creator Culture" cadence). **LIWC Linguistic Analysis** examines word choice, pronoun usage, and cognitive complexity markers.
+Expandable sections for each analysis type: Behavioral Archetype, Multimodal Analysis, Audio/Voice, LIWC Linguistics, and Speech Transcript.
 
 ### FBI Profile & Visualizations
-![Profile with Charts](https://github.com/shitcoinsherpa/The-Profiler/blob/main/screenshots/fbi1.png)
+![FBI Profile](https://github.com/shitcoinsherpa/The-Profiler/blob/main/screenshots/fbi1.png)
 
-The synthesis tab presents interactive visualizations:
-- **Confidence Gauge** - Overall analysis confidence score
-- **Big Five Radar** - Personality dimensions (Openness, Conscientiousness, Extraversion, Agreeableness, Neuroticism)
-- **Dark Triad Bars** - Narcissism, Machiavellianism, Psychopathy scores (0-100)
-- **Threat Matrix** - Risk levels for manipulation, volatility, compliance, etc.
+Interactive charts including:
+- **Confidence Gauge** - Overall analysis confidence
+- **Big Five Radar** - OCEAN personality dimensions
+- **Dark Triad Bars** - Narcissism, Machiavellianism, Psychopathy scores
+- **Threat Matrix** - Risk assessment levels
+- **MBTI Profile** - Cognitive function preferences
 
-Below the charts, the **FBI Behavioral Synthesis** provides an executive summary, operational recommendations, and interview approach strategies.
+### NCI Deception Analysis
+Chase Hughes / NCI University methodology for behavioral deception indicators:
+- **BTE Score** - Behavioral Table of Elements deception probability
+- **Blink Rate Analysis** - Stress indicator tracking
+- **FATE Model** - Focus, Authority, Tribe, Emotion motivational drivers
+- **Integrated Deception Assessment** with conflict resolution
 
 ## Requirements
 
-- Python 3.10+
-- FFmpeg (must be in PATH or project directory)
-- OpenRouter API key ([get one here](https://openrouter.ai/keys))
+- **Python 3.10+** (3.11 recommended)
+- **FFmpeg** (required for audio extraction)
+- **OpenRouter API key** - [Get one here](https://openrouter.ai/keys)
 
 ## Installation
+
+### Step 1: Clone the Repository
 
 ```bash
 git clone https://github.com/shitcoinsherpa/The-Profiler.git
 cd The-Profiler
 ```
 
+### Step 2: Install FFmpeg
+
+FFmpeg is required for extracting audio from videos.
+
+**Download:** Go to [https://www.gyan.dev/ffmpeg/builds/](https://www.gyan.dev/ffmpeg/builds/)
+
+1. Download `ffmpeg-git-essentials.7z` (or `ffmpeg-git-full.7z`)
+2. Extract the archive using [7-Zip](https://www.7-zip.org/)
+3. Navigate into the extracted folder, then into the `bin` folder
+4. Copy `ffmpeg.exe` to the **root of The-Profiler folder** (same folder as `app.py`)
+
+Your folder should look like:
+```
+The-Profiler/
+├── app.py
+├── ffmpeg.exe      <-- Place here
+├── requirements.txt
+├── setup.bat
+├── run.bat
+└── ...
+```
+
+**Alternative:** Add FFmpeg to your system PATH instead.
+
+### Step 3: Run Setup
+
 **Windows:**
 ```batch
-setup.bat   # Creates venv, installs dependencies
-run.bat     # Starts the app
+setup.bat
 ```
 
 **Linux/macOS:**
 ```bash
-chmod +x setup.sh run.sh
-./setup.sh  # Creates venv, installs dependencies
-./run.sh    # Starts the app
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 ```
 
-On first launch, enter your OpenRouter API key in the Settings accordion.
+### Step 4: Start the App
+
+**Windows:**
+```batch
+run.bat
+```
+
+**Linux/macOS:**
+```bash
+source venv/bin/activate
+python app.py
+```
+
+The app will open in your browser at `http://localhost:7860`
+
+### Step 5: Configure API Key
+
+1. In the web UI, expand **Settings & Configuration**
+2. Paste your OpenRouter API key
+3. Click **Save API Key**
+4. Click **Test Connection** to verify
 
 ## Usage
 
-1. Upload a video (10-300 seconds, max 100MB) or paste a URL
-2. Optionally enter a subject name to track profiles over time
+### Basic Workflow
+
+1. **Upload** a video file (10-300 seconds, max 100MB) or paste a URL
+2. **Optionally** enter a subject name to track profiles over time
 3. Click **Initiate Behavioral Analysis**
-4. Watch the 6-step progress bar as analysis runs (~1-2 minutes)
-5. Review results in Analysis Components and FBI Profile tabs
-6. Export as PDF or JSON
+4. Watch the 6-step progress bar (~1-3 minutes depending on video length)
+5. Review results in the three output tabs:
+   - **Analysis Components** - Individual analysis breakdowns
+   - **FBI Profile & Insights** - Synthesized profile with visualizations
+   - **NCI Deception Analysis** - Chase Hughes methodology indicators
+6. **Export** as PDF or JSON
+
+### Output Tabs Explained
+
+| Tab | Contents |
+|-----|----------|
+| **Analysis Components** | Behavioral Archetype, Multimodal Analysis, Audio/Voice, LIWC Linguistics, Transcript |
+| **FBI Profile & Insights** | Personality charts (Big Five, Dark Triad, MBTI, Threat Matrix), FBI Synthesis, Confidence scores |
+| **NCI Deception Analysis** | BTE Score gauge, Blink Rate chart, FATE Model radar, Deception Conflict Matrix |
+
+### Profile History
+
+Below the main interface, the **Profile History** section lets you:
+- Browse previously analyzed subjects
+- Compare multiple profiles for the same person
+- Review past analyses without re-running
+
+### Settings
+
+In the **Settings & Configuration** accordion:
+
+| Setting | Description |
+|---------|-------------|
+| **API Key** | Your OpenRouter API key (encrypted storage) |
+| **Vision Model** | Model for visual analysis (default: Gemini 2.5 Pro) |
+| **Multimodal Model** | Model for audio+visual analysis (default: Gemini 2.5 Flash) |
+| **Synthesis Model** | Model for final profile synthesis (default: Gemini 2.5 Pro) |
+| **Max Resolution** | Video processing resolution (720p/1080p) |
+| **Frame Interval** | Seconds between frame samples |
+| **Cache** | View/clear cached results |
+
+### Custom Prompt Templates
+
+In the **Custom Prompt Templates** accordion, you can:
+- Create custom analysis prompts
+- Save templates for different use cases
+- Modify the default FBI synthesis prompt
 
 ## Features
 
-- **Native video processing** via Gemini's multimodal understanding
-- **Parallel analysis pipeline** for faster results
-- **Result caching** to avoid redundant API calls
-- **Profile history** with search and comparison
-- **Custom prompt templates** for fine-tuning analysis
-- **PDF report generation**
+- **Native Video Processing** - Sends video directly to Gemini's multimodal understanding
+- **Parallel Analysis Pipeline** - Multiple sub-analyses run concurrently for speed
+- **Result Caching** - Avoids redundant API calls for the same video
+- **Profile Database** - SQLite storage with search and history
+- **PDF Reports** - Professional formatted export
+- **NCI Methodology** - Chase Hughes behavioral science framework
+- **Deception Conflict Matrix** - Reconciles contradicting signals across modalities
+
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| "FFmpeg not found" | Make sure `ffmpeg.exe` is in the project folder or in system PATH |
+| "API key invalid" | Verify your key at [openrouter.ai/keys](https://openrouter.ai/keys) and re-enter |
+| "Video too long/large" | Videos must be 10-300 seconds, under 100MB |
+| Analysis fails midway | Check OpenRouter credits; some models have usage limits |
+| Charts not showing | Ensure `plotly` installed: `pip install plotly` |
 
 ## License
 
@@ -95,4 +197,4 @@ MIT
 
 ## Disclaimer
 
-For educational and research purposes only.
+For educational and research purposes only. AI-generated psychological profiles are speculative assessments, not clinical diagnoses. Do not use for employment, legal, or medical decisions.
