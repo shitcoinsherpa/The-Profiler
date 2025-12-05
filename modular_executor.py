@@ -15,12 +15,8 @@ from modular_prompts import (
     AUDIO_PROMPTS,
     SYNTHESIS_PROMPTS,
 )
-from response_schemas import build_response_format
 
 logger = logging.getLogger(__name__)
-
-# Sub-analyses that should use structured JSON output
-STRUCTURED_OUTPUT_STAGES = {'personality', 'threat'}
 
 
 @dataclass
@@ -92,13 +88,7 @@ class ModularAnalysisExecutor:
     ) -> SubAnalysisResult:
         """Run a single sub-analysis."""
         start_time = time.time()
-
-        # Check if this sub-analysis should use structured JSON output
-        response_format = None
-        if name in STRUCTURED_OUTPUT_STAGES:
-            response_format = build_response_format(name)
-            if response_format:
-                logger.debug(f"Using structured output for '{name}' sub-analysis")
+        response_format = None  # Not using structured output
 
         try:
             if video and audio:
@@ -562,6 +552,20 @@ def format_modular_results(results: Dict[str, StageResult]) -> Dict[str, str]:
         for key in ['detail_mountain_valley', 'minimizing_language', 'linguistic_harvesting']:
             if key in audio.sub_results and audio.sub_results[key].success:
                 formatted[key] = audio.sub_results[key].result
+
+        # Build LIWC-style section from linguistic sub-analyses
+        liwc_parts = []
+        if 'sociolinguistic' in audio.sub_results and audio.sub_results['sociolinguistic'].success:
+            liwc_parts.append("SOCIOLINGUISTIC ANALYSIS:\n" + audio.sub_results['sociolinguistic'].result)
+        if 'minimizing_language' in audio.sub_results and audio.sub_results['minimizing_language'].success:
+            liwc_parts.append("\nMINIMIZING LANGUAGE (NCI Method):\n" + audio.sub_results['minimizing_language'].result)
+        if 'linguistic_harvesting' in audio.sub_results and audio.sub_results['linguistic_harvesting'].success:
+            liwc_parts.append("\nLINGUISTIC HARVESTING (NCI Method):\n" + audio.sub_results['linguistic_harvesting'].result)
+
+        if liwc_parts:
+            formatted['liwc'] = "\n".join(liwc_parts)
+        else:
+            formatted['liwc'] = "LIWC-style linguistic analysis integrated into audio sub-analyses.\nSee Audio tab for voice characteristics, sociolinguistic profiling, and deception indicators."
 
     # Synthesis/FBI Profile section
     if 'synthesis' in results:

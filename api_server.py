@@ -23,7 +23,7 @@ try:
 except ImportError:
     FASTAPI_AVAILABLE = False
 
-from profiler import BehavioralProfiler, ModelSelection, CustomPrompts
+from profiler import BehavioralProfiler, ModelSelection
 from config_manager import ConfigManager
 from database import get_database
 from cache_manager import get_cache

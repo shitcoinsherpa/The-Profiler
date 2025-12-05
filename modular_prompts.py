@@ -9,7 +9,7 @@ Each prompt is focused on a specific analysis aspect for reliable model followin
 
 VISUAL_FACS_PROMPT = """Analyze facial expressions using FACS (Facial Action Coding System).
 
-For each distinct expression observed across the images, provide:
+For each distinct expression observed in the video, provide:
 - Action Unit codes (e.g., AU1, AU2, AU4, AU6, AU12, AU14, AU15, AU17, AU24)
 - Combination interpretation (e.g., "AU6+AU12 = Duchenne smile (genuine)")
 - Timestamp/frame reference if determinable
@@ -50,7 +50,7 @@ Provide:
 DO NOT compare to actors, celebrities, or fictional characters.
 Focus ONLY on behavioral pattern identification."""
 
-VISUAL_BODY_LANGUAGE_PROMPT = """Analyze body language and proxemics from the images.
+VISUAL_BODY_LANGUAGE_PROMPT = """Analyze body language and proxemics in the video.
 
 Assess:
 1. POSTURE: Expansion vs contraction, dominance vs submission

@@ -387,65 +387,6 @@ class OpenRouterClient:
         except Exception as e:
             raise Exception(f"OpenRouter API error ({model} synthesis): {str(e)}")
 
-    # Backward compatibility aliases
-    def analyze_with_gpt51(
-        self,
-        prompt: str,
-        base64_images: List[str],
-        max_tokens: int = 3000,
-        temperature: float = 0.7,
-        timeout: int = 120
-    ) -> str:
-        """Backward compatibility: Use analyze_with_vision instead."""
-        return self.analyze_with_vision(
-            prompt=prompt,
-            base64_images=base64_images,
-            model="openai/gpt-4.1",
-            max_tokens=max_tokens,
-            temperature=temperature,
-            timeout=timeout
-        )
-
-    def analyze_with_gemini(
-        self,
-        prompt: str,
-        base64_images: List[str] = None,
-        base64_audio: str = None,
-        base64_video: str = None,
-        max_tokens: int = 3000,
-        temperature: float = 0.7,
-        timeout: int = 120
-    ) -> str:
-        """Backward compatibility: Use analyze_with_multimodal instead."""
-        return self.analyze_with_multimodal(
-            prompt=prompt,
-            base64_images=base64_images,
-            base64_audio=base64_audio,
-            base64_video=base64_video,
-            model="google/gemini-2.5-flash",
-            max_tokens=max_tokens,
-            temperature=temperature,
-            timeout=timeout
-        )
-
-    def synthesize_with_gpt51(
-        self,
-        prompt: str,
-        previous_analyses: str,
-        max_tokens: int = 4000,
-        temperature: float = 0.7,
-        timeout: int = 120
-    ) -> str:
-        """Backward compatibility: Use synthesize_text instead."""
-        return self.synthesize_text(
-            prompt=prompt,
-            previous_analyses=previous_analyses,
-            model="openai/gpt-4.1",
-            max_tokens=max_tokens,
-            temperature=temperature,
-            timeout=timeout
-        )
-
     def _send_multimodal_request(
         self,
         model: str,
@@ -548,16 +489,3 @@ class OpenRouterClient:
         except Exception as e:
             raise Exception(f"OpenRouter API error ({model}): {str(e)}")
 
-
-# Convenience function for quick client creation
-def create_client(api_key: Optional[str] = None) -> OpenRouterClient:
-    """
-    Create and return an OpenRouterClient instance.
-
-    Args:
-        api_key: Optional API key (uses env var if not provided)
-
-    Returns:
-        OpenRouterClient instance
-    """
-    return OpenRouterClient(api_key=api_key)

@@ -4,7 +4,6 @@ Extracts audio from video and converts to base64 for API analysis.
 """
 
 import os
-import re
 import base64
 import subprocess
 import tempfile

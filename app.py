@@ -36,14 +36,13 @@ from models_config import (
     DEV_META_MODELS,
     DEFAULT_DEV_META_MODEL
 )
-from video_downloader import download_video, is_valid_url, get_video_info
-from database import get_database, ProfileDatabase
+from video_downloader import download_video, is_valid_url
+from database import get_database
 from pdf_generator import generate_pdf_report, REPORTLAB_AVAILABLE
-from cache_manager import get_cache, VideoCache
+from cache_manager import get_cache
 from prompt_templates import (
     get_template_manager,
-    PROMPT_STAGES,
-    DEFAULT_PROMPTS
+    PROMPT_STAGES
 )
 
 
@@ -633,13 +632,13 @@ def run_profiling_analysis(video_file, essence_model, multimodal_model, audio_mo
         use_cache: Whether to use cached results
 
     Yields:
-        Tuple of (progress_html, status, essence, multimodal, audio, liwc, fbi, transcript, confidence, json_output, json_file)
+        Tuple of (progress_html, status, essence, multimodal, audio, liwc, fbi, nci, transcript, confidence, json_output, json_file)
     """
     # Helper to build yield tuple with optional viz outputs
-    def build_yield(progress, status, essence, multimodal, audio, liwc, fbi, transcript, confidence, json_out, file_out, viz_conf=None, viz_big5=None, viz_dark=None, viz_threat=None, viz_bte=None, viz_blink=None, viz_fate=None, viz_nci=None):
-        base = (progress, status, essence, multimodal, audio, liwc, fbi, transcript, confidence, json_out, file_out)
+    def build_yield(progress, status, essence, multimodal, audio, liwc, fbi, nci, transcript, confidence, json_out, file_out, viz_conf=None, viz_big5=None, viz_dark=None, viz_threat=None, viz_mbti=None, viz_bte=None, viz_blink=None, viz_fate=None, viz_nci=None):
+        base = (progress, status, essence, multimodal, audio, liwc, fbi, nci, transcript, confidence, json_out, file_out)
         if VISUALIZATIONS_AVAILABLE:
-            return base + (viz_conf, viz_big5, viz_dark, viz_threat, viz_bte, viz_blink, viz_fate, viz_nci)
+            return base + (viz_conf, viz_big5, viz_dark, viz_threat, viz_mbti, viz_bte, viz_blink, viz_fate, viz_nci)
         return base
 
     if video_file is None:
@@ -647,8 +646,8 @@ def run_profiling_analysis(video_file, essence_model, multimodal_model, audio_mo
         yield build_yield(
             generate_progress_html(0), error_msg,
             "No video file provided", "No video file provided", "No video file provided",
-            "No video file provided", "No video file provided", "No video file provided",
-            "No video file provided", "{}", None
+            "No video file provided", "No video file provided", "No NCI analysis available",
+            "No video file provided", "No video file provided", "{}", None
         )
         return
 
@@ -660,8 +659,8 @@ def run_profiling_analysis(video_file, essence_model, multimodal_model, audio_mo
             yield build_yield(
                 generate_progress_html(0), error_msg,
                 "API key required", "API key required", "API key required",
-                "API key required", "API key required", "API key required",
-                "API key required", "{}", None
+                "API key required", "API key required", "No NCI analysis available",
+                "API key required", "API key required", "{}", None
             )
             return
 
@@ -690,8 +689,8 @@ def run_profiling_analysis(video_file, essence_model, multimodal_model, audio_mo
         yield build_yield(
             generate_progress_html(0), current_status[0],
             "Analysis in progress...", "Analysis in progress...", "Analysis in progress...",
-            "Analysis in progress...", "Analysis in progress...", "Transcription in progress...",
-            "Confidence scoring in progress...", "{}", None
+            "Analysis in progress...", "Analysis in progress...", "NCI analysis in progress...",
+            "Transcription in progress...", "Confidence scoring in progress...", "{}", None
         )
 
         # Start profiling in a way that allows yielding
@@ -708,6 +707,7 @@ def run_profiling_analysis(video_file, essence_model, multimodal_model, audio_mo
             'audio': "Analysis in progress...",
             'liwc': "Analysis in progress...",
             'synthesis': "Analysis in progress...",
+            'nci': "NCI analysis in progress...",
             'transcript': "Transcription in progress...",
             'confidence': "Confidence scoring in progress..."
         }
@@ -748,13 +748,14 @@ def run_profiling_analysis(video_file, essence_model, multimodal_model, audio_mo
                 current_audio = partial_results['audio']
                 current_liwc = partial_results['liwc']
                 current_synthesis = partial_results['synthesis']
+                current_nci = partial_results['nci']
                 current_transcript = partial_results['transcript']
                 current_confidence = partial_results['confidence']
 
             yield build_yield(
                 generate_progress_html(current_step[0]), current_status[0],
                 current_essence, current_multimodal, current_audio,
-                current_liwc, current_synthesis, current_transcript,
+                current_liwc, current_synthesis, current_nci, current_transcript,
                 current_confidence, "{}", None
             )
             time_module.sleep(0.5)
@@ -803,6 +804,7 @@ def run_profiling_analysis(video_file, essence_model, multimodal_model, audio_mo
         viz_big_five = None
         viz_dark_triad = None
         viz_threat = None
+        viz_mbti = None
         # NCI/Chase Hughes visualizations
         viz_bte = None
         viz_blink = None
@@ -816,6 +818,7 @@ def run_profiling_analysis(video_file, essence_model, multimodal_model, audio_mo
                 generate_progress_html(6), "⏳ Generating visualizations...",
                 formatted['essence'], formatted['multimodal'], formatted['audio'],
                 formatted['liwc'], formatted['fbi_profile'],
+                formatted.get('nci', 'NCI analysis not available'),
                 formatted.get('transcript', 'Transcription not available'),
                 formatted.get('confidence', 'Confidence scoring not available'),
                 json_output, temp_file.name
@@ -852,6 +855,7 @@ def run_profiling_analysis(video_file, essence_model, multimodal_model, audio_mo
                 viz_big_five = create_big_five_radar(personality_text)
                 viz_dark_triad = create_dark_triad_bars(personality_text)
                 viz_threat = create_threat_matrix(threat_text)
+                viz_mbti = create_mbti_chart(all_analysis_text)
 
                 # NCI/Chase Hughes visualizations
                 viz_bte = create_bte_gauge(all_analysis_text)
@@ -859,7 +863,7 @@ def run_profiling_analysis(video_file, essence_model, multimodal_model, audio_mo
                 viz_fate = create_fate_radar(all_analysis_text)
                 viz_nci = create_nci_deception_summary(all_analysis_text)
 
-                core_charts = sum(1 for v in [viz_confidence, viz_big_five, viz_dark_triad, viz_threat] if v is not None)
+                core_charts = sum(1 for v in [viz_confidence, viz_big_five, viz_dark_triad, viz_threat, viz_mbti] if v is not None)
                 nci_charts = sum(1 for v in [viz_bte, viz_blink, viz_fate, viz_nci] if v is not None)
                 total_charts = core_charts + nci_charts
                 if total_charts > 0:
@@ -882,10 +886,11 @@ Download JSON report below.{saved_msg}"""
             generate_progress_html(7), final_status,  # Step 7 = 100% complete
             formatted['essence'], formatted['multimodal'], formatted['audio'],
             formatted['liwc'], formatted['fbi_profile'],
+            formatted.get('nci', 'NCI analysis not available'),
             formatted.get('transcript', 'Transcription not available'),
             formatted.get('confidence', 'Confidence scoring not available'),
             json_output, temp_file.name,
-            viz_confidence, viz_big_five, viz_dark_triad, viz_threat,
+            viz_confidence, viz_big_five, viz_dark_triad, viz_threat, viz_mbti,
             viz_bte, viz_blink, viz_fate, viz_nci
         )
 
@@ -905,7 +910,7 @@ Please check:
             generate_progress_html(0), error_status,
             f"ERROR: {str(e)}", f"ERROR: {str(e)}", f"ERROR: {str(e)}",
             f"ERROR: {str(e)}", f"ERROR: {str(e)}", f"ERROR: {str(e)}",
-            f"ERROR: {str(e)}", json.dumps({"error": str(e)}, indent=2), None
+            f"ERROR: {str(e)}", f"ERROR: {str(e)}", json.dumps({"error": str(e)}, indent=2), None
         )
 
 
@@ -917,6 +922,7 @@ try:
         create_big_five_radar,
         create_dark_triad_bars,
         create_threat_matrix,
+        create_mbti_chart,
         # NCI/Chase Hughes visualizations
         create_bte_gauge,
         create_blink_rate_chart,
@@ -1576,12 +1582,21 @@ def create_interface():
                                 label="Threat Assessment",
                                 show_label=False
                             )
+
+                    # MBTI Chart Row
+                    with gr.Row():
+                        with gr.Column(scale=1):
+                            mbti_chart = gr.Plot(
+                                label="MBTI Profile",
+                                show_label=False
+                            )
                 else:
                     # Placeholder variables if visualizations not available
                     confidence_gauge = gr.State(None)
                     big_five_chart = gr.State(None)
                     dark_triad_chart = gr.State(None)
                     threat_chart = gr.State(None)
+                    mbti_chart = gr.State(None)
 
                 with gr.Accordion("📋 FBI Behavioral Synthesis", open=True):
                     fbi_output = gr.Textbox(
@@ -1646,17 +1661,32 @@ def create_interface():
                     fate_radar = gr.State(None)
                     nci_deception_chart = gr.State(None)
 
-                gr.Markdown("""
-                ### NCI Methodology Reference
+                # NCI Analysis Text Output
+                with gr.Accordion("📋 Full NCI Analysis Details", open=True):
+                    nci_output = gr.Textbox(
+                        label="NCI/Chase Hughes Behavioral Analysis",
+                        value="Run analysis to see NCI deception indicators...",
+                        lines=20,
+                        interactive=False,
+                        show_copy_button=True
+                    )
 
-                **Behavioral Table of Elements (BTE)**: Score of 12+ suggests high deception probability
+                with gr.Accordion("ℹ️ NCI Methodology Reference", open=False):
+                    gr.Markdown("""
+**Behavioral Table of Elements (BTE)**: Score of 12+ suggests high deception probability
 
-                **Blink Rate**: Normal 17-25 BPM, Stressed 50+ BPM
+**Blink Rate**: Normal 17-25 BPM, Stressed 50+ BPM
 
-                **FATE Model**: Focus, Authority, Tribe, Emotion - primary psychological drivers
+**FATE Model**: Focus, Authority, Tribe, Emotion - primary psychological drivers
 
-                **Five C's Framework**: Change, Context, Clusters, Culture, Checklist
-                """)
+**Five C's Framework**: Change, Context, Clusters, Culture, Checklist
+
+**Detail Mountain/Valley**: Truth-tellers add details over time, deceivers often reduce details
+
+**Minimizing Language**: Words like "just", "only", "a little" may indicate deception
+
+**Gestural Mismatch**: Incongruence between verbal content and body language
+                    """)
 
         # Download Section
         gr.HTML('<div class="section-header">Export Report</div>')
@@ -1923,6 +1953,7 @@ def create_interface():
             audio_output,
             liwc_output,
             fbi_output,
+            nci_output,
             transcript_output,
             confidence_output,
             json_output,
@@ -1936,6 +1967,7 @@ def create_interface():
                 big_five_chart,
                 dark_triad_chart,
                 threat_chart,
+                mbti_chart,
                 # NCI/Chase Hughes charts
                 bte_gauge,
                 blink_rate_chart,

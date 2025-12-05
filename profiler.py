@@ -34,7 +34,6 @@ from confidence_scoring import (
     add_confidence_to_result,
     format_confidence_for_display
 )
-from parallel_executor import run_stage_parallel, AnalysisTask
 
 # Import modular executor for focused sub-analyses
 try:
@@ -300,187 +299,72 @@ class BehavioralProfiler:
             red_team_analysis = ''
 
             # MODULAR EXECUTION: Use focused sub-analyses with native video
-            if MODULAR_AVAILABLE:
-                self._update_progress(
-                    progress_callback,
-                    "⚡ Running modular analysis pipeline (native video)...",
-                    3
-                )
+            self._update_progress(
+                progress_callback,
+                "⚡ Running modular analysis pipeline (native video)...",
+                3
+            )
 
-                executor = ModularAnalysisExecutor(
-                    api_client=self.client,
-                    max_workers=4,
-                    max_tokens_sub=2000,
-                    max_tokens_synthesis=3000,
-                    temperature=0.7
-                )
+            executor = ModularAnalysisExecutor(
+                api_client=self.client,
+                max_workers=4,
+                max_tokens_sub=2000,
+                max_tokens_synthesis=3000,
+                temperature=0.7
+            )
 
-                # Run the full modular pipeline with native video
-                modular_results = executor.run_full_pipeline(
-                    video=base64_video,
-                    audio=base64_audio,
-                    visual_model=self.model_config.essence_model,
-                    multimodal_model=self.model_config.multimodal_model,
-                    audio_model=self.model_config.audio_model,
-                    synthesis_model=self.model_config.synthesis_model,
-                    progress_callback=progress_callback,
-                    results_callback=results_callback
-                )
+            # Run the full modular pipeline with native video
+            modular_results = executor.run_full_pipeline(
+                video=base64_video,
+                audio=base64_audio,
+                visual_model=self.model_config.essence_model,
+                multimodal_model=self.model_config.multimodal_model,
+                audio_model=self.model_config.audio_model,
+                synthesis_model=self.model_config.synthesis_model,
+                progress_callback=progress_callback,
+                results_callback=results_callback
+            )
 
-                # Format results for compatibility with existing structure
-                formatted = format_modular_results(modular_results)
+            # Format results for compatibility with existing structure
+            formatted = format_modular_results(modular_results)
 
-                # Map to existing analysis structure
-                essence_analysis = formatted.get('essence', 'Analysis unavailable')
-                multimodal_analysis = formatted.get('multimodal', 'Analysis unavailable')
-                audio_analysis = formatted.get('audio', 'Analysis unavailable')
-                liwc_analysis = formatted.get('audio', 'Integrated into audio sub-analyses')
-                fbi_profile = formatted.get('fbi_profile', 'Synthesis unavailable')
+            # Map to existing analysis structure
+            essence_analysis = formatted.get('essence', 'Analysis unavailable')
+            multimodal_analysis = formatted.get('multimodal', 'Analysis unavailable')
+            audio_analysis = formatted.get('audio', 'Analysis unavailable')
+            liwc_analysis = formatted.get('liwc', 'LIWC analysis unavailable')
+            fbi_profile = formatted.get('fbi_profile', 'Synthesis unavailable')
 
-                # Get sub-analysis data for visualizations and PDF
-                personality_analysis = formatted.get('personality', '')
-                threat_analysis = formatted.get('threat', '')
-                differential_analysis = formatted.get('differential', '')
-                contradictions_analysis = formatted.get('contradictions', '')
-                red_team_analysis = formatted.get('red_team', '')
+            # Get sub-analysis data for visualizations and PDF
+            personality_analysis = formatted.get('personality', '')
+            threat_analysis = formatted.get('threat', '')
+            differential_analysis = formatted.get('differential', '')
+            contradictions_analysis = formatted.get('contradictions', '')
+            red_team_analysis = formatted.get('red_team', '')
 
-                # Get NCI/Chase Hughes sub-analyses for PDF report
-                nci_sub_analyses = {
-                    # Visual NCI analyses
-                    'blink_rate': formatted.get('blink_rate', ''),
-                    'bte_scoring': formatted.get('bte_scoring', ''),
-                    'facial_etching': formatted.get('facial_etching', ''),
-                    'gestural_mismatch': formatted.get('gestural_mismatch', ''),
-                    'stress_clusters': formatted.get('stress_clusters', ''),
-                    # Multimodal NCI analyses
-                    'five_cs': formatted.get('five_cs', ''),
-                    'baseline_deviation': formatted.get('baseline_deviation', ''),
-                    # Audio NCI analyses
-                    'detail_mountain_valley': formatted.get('detail_mountain_valley', ''),
-                    'minimizing_language': formatted.get('minimizing_language', ''),
-                    'linguistic_harvesting': formatted.get('linguistic_harvesting', ''),
-                    # Synthesis NCI analyses
-                    'fate_model': formatted.get('fate_model', ''),
-                    'nci_deception_summary': formatted.get('nci_deception_summary', ''),
-                }
+            # Get NCI/Chase Hughes sub-analyses for PDF report
+            nci_sub_analyses = {
+                # Visual NCI analyses
+                'blink_rate': formatted.get('blink_rate', ''),
+                'bte_scoring': formatted.get('bte_scoring', ''),
+                'facial_etching': formatted.get('facial_etching', ''),
+                'gestural_mismatch': formatted.get('gestural_mismatch', ''),
+                'stress_clusters': formatted.get('stress_clusters', ''),
+                # Multimodal NCI analyses
+                'five_cs': formatted.get('five_cs', ''),
+                'baseline_deviation': formatted.get('baseline_deviation', ''),
+                # Audio NCI analyses
+                'detail_mountain_valley': formatted.get('detail_mountain_valley', ''),
+                'minimizing_language': formatted.get('minimizing_language', ''),
+                'linguistic_harvesting': formatted.get('linguistic_harvesting', ''),
+                # Synthesis NCI analyses
+                'fate_model': formatted.get('fate_model', ''),
+                'nci_deception_summary': formatted.get('nci_deception_summary', ''),
+            }
 
-                # Calculate execution times from modular results
-                total_modular_time = sum(r.execution_time for r in modular_results.values())
-                logger.info(f"Modular pipeline completed in {total_modular_time:.2f}s")
-
-            else:
-                # FALLBACK: Legacy parallel execution if modular unavailable
-                logger.warning("Modular executor unavailable, using legacy parallel execution")
-                self._update_progress(
-                    progress_callback,
-                    f"⚡ STEPS 3-5/6: Running analyses in parallel (legacy mode)...",
-                    3
-                )
-
-                # Define analysis functions
-                def run_essence():
-                    return self.client.analyze_with_vision(
-                        prompt=self._get_prompt('essence'),
-                        base64_images=base64_frames,
-                        model=self.model_config.essence_model,
-                        max_tokens=3000,
-                        temperature=0.7,
-                        timeout=120
-                    )
-
-                def run_multimodal():
-                    return self.client.analyze_with_multimodal(
-                        prompt=self._get_prompt('multimodal'),
-                        base64_images=base64_frames,
-                        base64_audio=base64_audio,
-                        model=self.model_config.multimodal_model,
-                        max_tokens=4000,
-                        temperature=0.7,
-                        timeout=180
-                    )
-
-                def run_audio():
-                    if not base64_audio:
-                        return "Audio analysis unavailable: No audio could be extracted"
-                    return self.client.analyze_audio(
-                        prompt=self._get_prompt('audio'),
-                        base64_audio=base64_audio,
-                        model=self.model_config.audio_model,
-                        max_tokens=3000,
-                        temperature=0.7,
-                        timeout=120
-                    )
-
-                def run_liwc():
-                    if not base64_audio:
-                        return "LIWC linguistic analysis unavailable: No audio could be extracted"
-                    return self.client.analyze_audio(
-                        prompt=self._get_prompt('liwc'),
-                        base64_audio=base64_audio,
-                        model=self.model_config.liwc_model,
-                        max_tokens=4000,
-                        temperature=0.7,
-                        timeout=180
-                    )
-
-                # Callback for streaming results as they complete
-                def on_stage_complete(stage, result):
-                    self._send_result(results_callback, stage, result)
-                    logger.info(f"Parallel stage '{stage}' completed")
-
-                # Run all analyses in parallel
-                parallel_results = run_stage_parallel(
-                    essence_func=run_essence,
-                    multimodal_func=run_multimodal,
-                    audio_func=run_audio,
-                    liwc_func=run_liwc,
-                    on_complete=on_stage_complete
-                )
-
-                # Extract results
-                essence_analysis = parallel_results['essence'].result
-                multimodal_analysis = parallel_results['multimodal'].result
-                audio_analysis = parallel_results['audio'].result
-                liwc_analysis = parallel_results['liwc'].result
-
-                # Calculate total parallel execution time
-                parallel_time = max(r.execution_time for r in parallel_results.values())
-                logger.info(f"Parallel execution completed in {parallel_time:.2f}s")
-
-                self._update_progress(
-                    progress_callback,
-                    f"✓ STEPS 3-5/6: All parallel analyses complete ({parallel_time:.1f}s)",
-                    5
-                )
-
-                # Legacy mode needs FBI synthesis step
-                self._update_progress(
-                    progress_callback,
-                    f"🎯 STEP 6/6: Synthesizing FBI behavioral profile...",
-                    6
-                )
-
-                combined_analyses = f"""ANALYSIS 1: SAM CHRISTENSEN VISUAL ESSENCE PROFILE
-{essence_analysis}
-
-ANALYSIS 2: COMPREHENSIVE MULTIMODAL BEHAVIORAL ANALYSIS
-{multimodal_analysis}
-
-ANALYSIS 3: AUDIO/VOICE ANALYSIS
-{audio_analysis}
-
-ANALYSIS 4: LIWC-STYLE LINGUISTIC ANALYSIS
-{liwc_analysis}"""
-
-                fbi_profile = self.client.synthesize_text(
-                    prompt=self._get_prompt('synthesis'),
-                    previous_analyses=combined_analyses,
-                    model=self.model_config.synthesis_model,
-                    max_tokens=4000,
-                    temperature=0.7,
-                    timeout=120
-                )
-                self._send_result(results_callback, 'synthesis', fbi_profile)
+            # Calculate execution times from modular results
+            total_modular_time = sum(r.execution_time for r in modular_results.values())
+            logger.info(f"Modular pipeline completed in {total_modular_time:.2f}s")
 
             # Calculate total processing time
             processing_time = time.time() - start_time
@@ -506,11 +390,11 @@ ANALYSIS 4: LIWC-STYLE LINGUISTIC ANALYSIS
                     'liwc_linguistic_analysis': liwc_analysis,
                     'fbi_behavioral_synthesis': fbi_profile,
                     # Synthesis sub-analyses (for PDF report)
-                    'personality_synthesis': personality_analysis if MODULAR_AVAILABLE else '',
-                    'threat_synthesis': threat_analysis if MODULAR_AVAILABLE else '',
-                    'differential': differential_analysis if MODULAR_AVAILABLE else '',
-                    'contradictions': contradictions_analysis if MODULAR_AVAILABLE else '',
-                    'red_team': red_team_analysis if MODULAR_AVAILABLE else '',
+                    'personality_synthesis': personality_analysis,
+                    'threat_synthesis': threat_analysis,
+                    'differential': differential_analysis,
+                    'contradictions': contradictions_analysis,
+                    'red_team': red_team_analysis,
                     # NCI/Chase Hughes sub-analyses (for PDF report)
                     **nci_sub_analyses
                 },
@@ -727,12 +611,53 @@ INTERPRETATION GUIDE:
         else:
             confidence_text = "Confidence scoring not available for this analysis."
 
+        # Build NCI/Chase Hughes analysis section
+        nci_sections = []
+
+        # Visual NCI analyses
+        if analyses.get('blink_rate'):
+            nci_sections.append(f"━━━ BLINK RATE ANALYSIS (NCI Method) ━━━\n{analyses['blink_rate']}")
+        if analyses.get('bte_scoring'):
+            nci_sections.append(f"━━━ BEHAVIORAL TABLE OF ELEMENTS (BTE) ━━━\n{analyses['bte_scoring']}")
+        if analyses.get('facial_etching'):
+            nci_sections.append(f"━━━ FACIAL ETCHING ANALYSIS ━━━\n{analyses['facial_etching']}")
+        if analyses.get('gestural_mismatch'):
+            nci_sections.append(f"━━━ GESTURAL MISMATCH DETECTION ━━━\n{analyses['gestural_mismatch']}")
+        if analyses.get('stress_clusters'):
+            nci_sections.append(f"━━━ STRESS CLUSTER IDENTIFICATION ━━━\n{analyses['stress_clusters']}")
+
+        # Multimodal NCI analyses
+        if analyses.get('five_cs'):
+            nci_sections.append(f"━━━ FIVE C'S FRAMEWORK ━━━\n{analyses['five_cs']}")
+        if analyses.get('baseline_deviation'):
+            nci_sections.append(f"━━━ BASELINE DEVIATION ANALYSIS ━━━\n{analyses['baseline_deviation']}")
+
+        # Audio NCI analyses
+        if analyses.get('detail_mountain_valley'):
+            nci_sections.append(f"━━━ DETAIL MOUNTAIN/VALLEY PATTERN ━━━\n{analyses['detail_mountain_valley']}")
+        if analyses.get('minimizing_language'):
+            nci_sections.append(f"━━━ MINIMIZING LANGUAGE DETECTION ━━━\n{analyses['minimizing_language']}")
+        if analyses.get('linguistic_harvesting'):
+            nci_sections.append(f"━━━ LINGUISTIC HARVESTING ━━━\n{analyses['linguistic_harvesting']}")
+
+        # Synthesis NCI analyses
+        if analyses.get('fate_model'):
+            nci_sections.append(f"━━━ FATE MODEL PROFILE ━━━\n{analyses['fate_model']}")
+        if analyses.get('nci_deception_summary'):
+            nci_sections.append(f"━━━ NCI DECEPTION SUMMARY ━━━\n{analyses['nci_deception_summary']}")
+
+        if nci_sections:
+            nci_text = "\n\n".join(nci_sections)
+        else:
+            nci_text = "NCI/Chase Hughes analysis not available for this analysis.\n\nThis may indicate the modular analysis pipeline did not run or NCI prompts were not executed."
+
         return {
             'essence': header + analyses.get('sam_christensen_essence', 'No data'),
             'multimodal': header + analyses.get('multimodal_behavioral', 'No data'),
             'audio': header + analyses.get('audio_voice_analysis', 'No data'),
             'liwc': header + analyses.get('liwc_linguistic_analysis', 'No data'),
             'fbi_profile': header + analyses.get('fbi_behavioral_synthesis', 'No data'),
+            'nci': header + nci_text,
             'transcript': header + transcript_text,
             'confidence': header + confidence_text,
             'json': json.dumps(result, indent=2)

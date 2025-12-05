@@ -10,7 +10,7 @@ import logging
 from pathlib import Path
 from typing import Dict, Optional, Tuple
 from datetime import datetime, timedelta
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
