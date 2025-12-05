@@ -308,8 +308,8 @@ class BehavioralProfiler:
             executor = ModularAnalysisExecutor(
                 api_client=self.client,
                 max_workers=4,
-                max_tokens_sub=2000,
-                max_tokens_synthesis=3000,
+                max_tokens_sub=8000,
+                max_tokens_synthesis=16000,
                 temperature=0.7
             )
 

@@ -676,8 +676,19 @@ def run_profiling_analysis(video_file, essence_model, multimodal_model, audio_mo
         # Initialize profiler with selected models
         profiler = BehavioralProfiler(model_config=model_config)
 
+        # Get video duration for time estimate (~5.5 min per minute of video)
+        try:
+            from frame_extractor import validate_video_file
+            video_meta = validate_video_file(video_file)
+            video_duration_min = video_meta.get('duration_seconds', 60) / 60
+            estimated_min = int(video_duration_min * 5.5)
+            time_estimate = f" (Est. {estimated_min}-{estimated_min + 3} min)"
+        except:
+            time_estimate = ""
+
+
         # Shared state for progress
-        current_status = ["⏳ Initializing analysis pipeline..."]
+        current_status = [f"⏳ Initializing analysis pipeline...{time_estimate}"]
         current_step = [0]
 
         # Progress callback that updates shared state

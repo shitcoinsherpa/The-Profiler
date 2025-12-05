@@ -1,5 +1,9 @@
 # Claude Code Rules for This Project
 
+## File Editing Rules
+
+**Do NOT create Python helper scripts to edit files.** Use the Edit tool directly, or use sed/awk if absolutely necessary. If the Edit tool fails due to "file modified", re-read the file and try again. Never create throwaway .py files to make edits.
+
 ## Todo List Rules
 
 When cleaning up code or making fixes:
@@ -25,3 +29,4 @@ When cleaning up code or making fixes:
 - Perform the fix
 - Mark CLEANUP as completed
 - Move to next VERIFY item
+

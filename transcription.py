@@ -132,23 +132,42 @@ def parse_transcription_response(response: str) -> TranscriptionResult:
     Returns:
         Parsed TranscriptionResult
     """
-    transcript = ""
-    summary = ""
-    speakers = []
-    word_count = 0
-    audio_quality = "Unknown"
+    import re
+
+    # Use a dict to accumulate parsed data (avoids locals() copy bug)
+    parsed = {
+        'transcript': "",
+        'summary': "",
+        'speakers': [],
+        'word_count': 0,
+        'audio_quality': "Unknown"
+    }
 
     lines = response.split('\n')
     current_section = None
     section_content = []
+
+    def save_current_section():
+        """Save the current section's content to parsed dict."""
+        nonlocal current_section, section_content
+        if not current_section or not section_content:
+            return
+        content = '\n'.join(section_content).strip()
+        if current_section == 'transcript':
+            parsed['transcript'] = content
+        elif current_section == 'summary':
+            parsed['summary'] = content
+        elif current_section == 'speakers':
+            parsed['speakers'] = [s.strip() for s in content.split('\n') if s.strip() and s.strip() != '-']
+        elif current_section == 'quality':
+            parsed['audio_quality'] = content
 
     for line in lines:
         line_stripped = line.strip()
 
         # Detect section headers
         if line_stripped.startswith('TRANSCRIPT:'):
-            if current_section and section_content:
-                _save_section(current_section, section_content, locals())
+            save_current_section()
             current_section = 'transcript'
             section_content = []
             # Check if content is on the same line
@@ -156,81 +175,58 @@ def parse_transcription_response(response: str) -> TranscriptionResult:
             if after_colon:
                 section_content.append(after_colon)
         elif line_stripped.startswith('SUMMARY:'):
-            if current_section and section_content:
-                _save_section(current_section, section_content, locals())
+            save_current_section()
             current_section = 'summary'
             section_content = []
             after_colon = line_stripped[8:].strip()
             if after_colon:
                 section_content.append(after_colon)
         elif line_stripped.startswith('SPEAKERS:'):
-            if current_section and section_content:
-                _save_section(current_section, section_content, locals())
+            save_current_section()
             current_section = 'speakers'
             section_content = []
         elif line_stripped.startswith('AUDIO QUALITY:'):
-            if current_section and section_content:
-                _save_section(current_section, section_content, locals())
+            save_current_section()
             current_section = 'quality'
             section_content = []
             after_colon = line_stripped[14:].strip()
             if after_colon:
                 section_content.append(after_colon)
         elif line_stripped.startswith('WORD COUNT:'):
+            save_current_section()
+            current_section = None
+            section_content = []
             try:
                 count_str = line_stripped[11:].strip()
-                # Extract just the number
-                import re
                 numbers = re.findall(r'\d+', count_str)
                 if numbers:
-                    word_count = int(numbers[0])
+                    parsed['word_count'] = int(numbers[0])
             except:
                 pass
         elif line_stripped.startswith('DURATION:'):
-            pass  # We can extract this if needed
+            save_current_section()
+            current_section = None
+            section_content = []
         elif current_section:
             section_content.append(line)
 
     # Save the last section
-    if current_section and section_content:
-        content = '\n'.join(section_content).strip()
-        if current_section == 'transcript':
-            transcript = content
-        elif current_section == 'summary':
-            summary = content
-        elif current_section == 'speakers':
-            speakers = [s.strip() for s in content.split('\n') if s.strip() and s.strip() != '-']
-        elif current_section == 'quality':
-            audio_quality = content
+    save_current_section()
 
     # If parsing failed, use the whole response as transcript
-    if not transcript:
-        transcript = response
-        # Estimate word count
-        word_count = len(response.split())
+    if not parsed['transcript']:
+        parsed['transcript'] = response
+        parsed['word_count'] = len(response.split())
 
     return TranscriptionResult(
-        transcript=transcript,
-        summary=summary,
-        speakers=speakers,
-        word_count=word_count if word_count > 0 else len(transcript.split()),
-        audio_quality=audio_quality,
+        transcript=parsed['transcript'],
+        summary=parsed['summary'],
+        speakers=parsed['speakers'],
+        word_count=parsed['word_count'] if parsed['word_count'] > 0 else len(parsed['transcript'].split()),
+        audio_quality=parsed['audio_quality'],
         raw_response="",
         success=True
     )
-
-
-def _save_section(section: str, content: list, local_vars: dict):
-    """Helper to save section content."""
-    content_str = '\n'.join(content).strip()
-    if section == 'transcript':
-        local_vars['transcript'] = content_str
-    elif section == 'summary':
-        local_vars['summary'] = content_str
-    elif section == 'speakers':
-        local_vars['speakers'] = [s.strip() for s in content_str.split('\n') if s.strip()]
-    elif section == 'quality':
-        local_vars['audio_quality'] = content_str
 
 
 def format_transcript_for_display(result: TranscriptionResult) -> str:
