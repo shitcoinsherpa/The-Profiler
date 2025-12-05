@@ -143,7 +143,8 @@ class OpenRouterClient:
         self,
         api_key: Optional[str] = None,
         rate_limit: bool = True,
-        requests_per_minute: int = 60
+        requests_per_minute: int = 60,
+        max_retries: int = 5
     ):
         """
         Initialize OpenRouter client.
@@ -152,6 +153,7 @@ class OpenRouterClient:
             api_key: OpenRouter API key (uses OPENROUTER_API_KEY env var if not provided)
             rate_limit: Whether to enable rate limiting (default: True)
             requests_per_minute: Maximum requests per minute when rate limiting
+            max_retries: Maximum retries for transient errors (default: 5)
 
         Raises:
             ValueError: If API key is not provided and not found in environment
@@ -165,9 +167,11 @@ class OpenRouterClient:
             )
 
         # Initialize OpenAI client with OpenRouter base URL
+        # max_retries handles transient 503 errors from OpenRouter/Cloudflare
         self.client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
-            api_key=self.api_key
+            api_key=self.api_key,
+            max_retries=max_retries
         )
 
         # Rate limiting
