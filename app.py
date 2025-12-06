@@ -894,12 +894,12 @@ def run_profiling_analysis(video_file, essence_model, multimodal_model, audio_mo
                 from PIL import Image
                 img_bytes = b64.b64decode(mugshot_data['base64'])
                 mugshot_pil = Image.open(BytesIO(img_bytes))
-                logger.info("Mugshot loaded for display")
+                pass  # Mugshot loaded
             
             # Get subject identification from analyses
             subject_id_text = result.get('analyses', {}).get('subject_identification', 'Subject identification not available')
         except Exception as mug_err:
-            logger.warning(f"Mugshot display failed: {mug_err}")
+            pass  # Mugshot display failed silently
 
         # Final status
         final_status = f"""✓ ANALYSIS COMPLETE
