@@ -67,12 +67,17 @@ Rate each dimension 0-100:
 
 Provide specific visual evidence for each assessment."""
 
-VISUAL_DECEPTION_PROMPT = """Assess deception indicators from visual evidence with duration analysis.
+VISUAL_CONGRUENCE_PROMPT = """Assess CONGRUENCE between verbal content and visual behavior (non-judgmental credibility analysis).
+
+NOTE: This is a CONGRUENCE analysis, not a "deception detection." The goal is to identify
+alignment or misalignment between channels - NOT to conclude someone is "lying."
+Incongruence may indicate: stress, discomfort, performance anxiety, cultural differences,
+exaggeration for effect, or yes, possible deception. CONTEXT DETERMINES MEANING.
 
 DURATION CLASSIFICATION (Critical for authenticity):
 - MICRO-EXPRESSION: <0.5 seconds = Emotional LEAKAGE (genuine, suppressed)
 - NORMAL EXPRESSION: 0.5-4 seconds = Typical genuine emotion
-- FROZEN EXPRESSION: >4-5 seconds = FABRICATED/performed emotion
+- FROZEN EXPRESSION: >4-5 seconds = PERFORMED emotion (may be theatrical, not deceptive)
 
 Analyze:
 1. MICRO-EXPRESSIONS: Brief emotional flashes contradicting stated affect
@@ -84,28 +89,43 @@ Analyze:
 5. TIMING ANALYSIS:
    - Expression ONSET: Before, during, or after verbal statement?
    - Expression DURATION: <0.5s / 0.5-4s / >4s
-   - Natural emotions peak and fade; fabricated ones appear suddenly and hold
+   - Natural emotions peak and fade; performed ones appear suddenly and hold
 
 6. OCULAR ACCESS CUES (NLP Eye Patterns):
    Track eye movement direction relative to verbal content:
-   - Up-Right: Visual Constructed (imagining/fabricating)
-   - Up-Left: Visual Remembered (recalling truth)
-   - Lateral-Right: Auditory Constructed (fabricating dialogue)
+   - Up-Right: Visual Constructed (imagining - could be creative recall OR fabrication)
+   - Up-Left: Visual Remembered (recalling actual memory)
+   - Lateral-Right: Auditory Constructed (imagining sounds/dialogue)
    - Lateral-Left: Auditory Remembered (recalling actual conversation)
    - Down-Right: Kinesthetic (accessing feelings)
    - Down-Left: Internal Dialogue (self-talk)
-   
-   FLAG: Visual Constructed (Up-Right) during factual claims = HIGH deception indicator
+
+   NOTE: Visual Constructed during factual claims = INCONGRUENCE (investigate, don't conclude)
+
+7. BASELINE-TO-STIMULUS DELTA SCORING (0-10):
+   For each topic/stimulus discussed, rate:
+   - BASELINE INTENSITY (0-10): Subject's calm/neutral state
+   - STIMULUS REACTION (0-10): Intensity during specific topic
+   - DELTA: [Stimulus - Baseline] = Change score
+
+   Example: "Topic: Financial losses. Baseline: 3 -> Stimulus: 8 = Delta +5 (HIGH REACTIVITY)"
+
+   Deltas:
+   - 0-2: Normal variation
+   - 3-4: Moderate reactivity (notable)
+   - 5-7: High reactivity (investigate)
+   - 8-10: Extreme reactivity (critical flag)
 
 Provide:
-- Specific deception indicators with DURATION and timestamp
+- CONGRUENCE ASSESSMENT: ALIGNED / PARTIALLY ALIGNED / MISALIGNED
+- Specific incongruence markers with DURATION and timestamp
 - Expression duration classification for each emotional display
-- Ocular access patterns mapped to content truthfulness
-- Authenticity assessment: GENUINE / PERFORMED / MIXED
-- Confidence level for deception assessment
+- Ocular access patterns (descriptive, not accusatory)
+- DELTA SCORES for top 3-5 reactive topics
 - Hot spots requiring investigative attention
+- ALTERNATIVE EXPLANATIONS for each incongruence (stress, performance, cultural, etc.)
 
-Be conservative - only flag clear indicators, note uncertainty."""
+Be conservative - identify incongruence, do not diagnose deception. Note uncertainty."""
 
 
 # =============================================================================
@@ -272,35 +292,48 @@ Provide:
 Focus ONLY on facial etching analysis."""
 
 
-VISUAL_GESTURAL_MISMATCH_PROMPT = """Detect gestural mismatches and timing asynchrony as deception indicators.
+VISUAL_GESTURAL_MISMATCH_PROMPT = """Detect gestural mismatches and timing asynchrony as CONGRUENCE indicators.
 
 CHASE HUGHES GESTURAL-VERBAL SYNCHRONY ANALYSIS:
-Gestural-verbal asynchrony is one of the highest indicators of rehearsed deception.
+Gestural-verbal asynchrony is one of the highest indicators of rehearsed content.
+
+**PRECISION LIMITATION WARNING:**
+LLMs cannot measure millisecond-level timing with high accuracy from video.
+For claims about gesture-speech timing:
+- Be CONSERVATIVE in timing claims
+- Use qualitative descriptors: "gesture appears to precede/follow/coincide"
+- Do NOT claim specific millisecond measurements without CV backing
+- Flag high-confidence vs low-confidence observations
+- Note: CV-backed timing data from MediaPipe would validate these observations
 
 Analyze for these specific mismatches:
 
-1. GESTURAL-VERBAL TIMING:
+1. GESTURAL-VERBAL TIMING (QUALITATIVE - not millisecond-precise):
    - Natural speech: Gesture PRECEDES or COINCIDES with verbal emphasis
-   - Rehearsed/deceptive: Gesture FOLLOWS after the emphasized word
-   - Example: Hand chop on "opportunity" - does gesture hit BEFORE/DURING or AFTER the word?
+   - Rehearsed: Gesture FOLLOWS after the emphasized word
+   - Example: Hand chop on "opportunity" - does gesture appear BEFORE/DURING or AFTER?
+   - CONFIDENCE: Rate each observation as HIGH/MEDIUM/LOW confidence
 
 2. HEAD SHAKE MISMATCH:
    - Subject says positive statement while shaking head "no"
    - Subject says negative statement while nodding "yes"
-   - Flag specific instances with timestamps
+   - Flag specific instances with approximate timestamps
+   - These are OBSERVABLE without CV precision
 
 3. SHOULDER SHRUG MISMATCH:
-   - Single-shoulder shrug during definitive statements (HIGH deception indicator)
+   - Single-shoulder shrug during definitive statements (congruence indicator)
    - Full shoulder shrug with uncertain language (congruent)
-   - Single-shoulder = "I don't really believe what I'm saying"
+   - Single-shoulder = possible lack of conviction
+   - OBSERVABLE without CV precision
 
 4. FACIAL-VERBAL MISMATCH:
-   - Smiling while discussing negative topics
+   - Smiling while discussing negative topics (may be ironic - see culture filter)
    - Flat affect while expressing enthusiasm
    - Contempt flash during positive statements
+   - OBSERVABLE but interpret with cultural context
 
-5. TIMING ANALYSIS:
-   - Delayed emotional reactions (>0.5 sec after trigger)
+5. TIMING ANALYSIS (LOW PRECISION without CV):
+   - Delayed emotional reactions (estimate only - >0.5 sec after trigger)
    - Premature emotional displays (before trigger completes)
    - Sustained expressions (genuine emotions fade within 4-5 seconds)
 
@@ -634,7 +667,11 @@ Estimate:
 
 Be specific about linguistic evidence for each conclusion."""
 
-AUDIO_DECEPTION_VOICE_PROMPT = """Assess vocal deception indicators with COGNITIVE LOAD ANALYSIS focus.
+AUDIO_CREDIBILITY_PROMPT = """Assess vocal CREDIBILITY indicators with COGNITIVE LOAD ANALYSIS focus.
+
+NOTE: This is a CREDIBILITY analysis, not "deception detection." Cognitive load indicates
+mental effort - which may come from: complex recall, emotional difficulty, performance pressure,
+second-language processing, or yes, fabrication. INTERPRET IN CONTEXT.
 
 Analyze:
 1. VOCAL STRESS: Pitch changes, tension, shakiness, throat clearing
@@ -665,16 +702,25 @@ Analyze:
    - Which topics produce delayed, fragmented responses?
    - Compare baseline response time to topic-specific delays
 
+10. BASELINE-TO-STIMULUS DELTA SCORING (0-10):
+    For each topic, score:
+    - VOCAL BASELINE (0-10): Normal speech fluency/confidence
+    - TOPIC REACTION (0-10): Stress level during specific topic
+    - DELTA: [Reaction - Baseline]
+
+    Example: "Topic: Partnership details. Baseline: 2 -> Reaction: 7 = Delta +5 (HIGH)"
+
 For each indicator, provide:
 - Timestamp reference
 - Specific observation
 - Cognitive Load Level: Low/Moderate/High/Overloaded
-- Deception probability: Low/Medium/High
-- Confidence in assessment
+- DELTA SCORE for this topic
+- Credibility concern: None/Low/Medium/High
+- ALTERNATIVE EXPLANATIONS (emotional topic, complex recall, etc.)
 
-CRITICAL: Identify the 3 MOMENTS OF HIGHEST COGNITIVE LOAD - these are prime deception investigation points.
+CRITICAL: Identify the 3 MOMENTS OF HIGHEST COGNITIVE LOAD - these warrant investigation.
 
-Note areas where subject seems most/least truthful and WHY based on cognitive indicators."""
+Describe areas of high/low credibility and POSSIBLE EXPLANATIONS (don't assume deception)."""
 
 
 # =============================================================================
@@ -1135,6 +1181,75 @@ CONFIDENCE CALIBRATION:
 This ensures investigators don't over-rely on the profile."""
 
 
+SYNTHESIS_IRONY_MEME_FILTER_PROMPT = """Apply Internet Culture / Irony Filter for digital-native subjects.
+
+ANALYSIS DATA TO SYNTHESIZE:
+{previous_analyses}
+
+PURPOSE: Many subjects - especially crypto traders, tech workers, streamers, influencers,
+and those active in online communities - use IRONIC, MEMETIC, or IN-GROUP language that
+can be misinterpreted as genuine distress, regret, or shame when it is actually:
+- Performative self-deprecation (common in tech/crypto culture)
+- In-group signaling / community bonding
+- Ironic hyperbole for entertainment
+- Meme references (may sound distressed but are cultural references)
+
+CRITICAL QUESTION: Is this subject INTERNET-NATIVE?
+
+1. DIGITAL CULTURE INDICATORS:
+   - Uses crypto/tech/gaming jargon ("doomer," "ngmi," "cope," "based," "rugged")
+   - References memes or internet culture
+   - Self-deprecating humor about losses/failures (common in trading culture)
+   - Hyperbolic language ("absolutely destroyed," "life ruined," said with smile)
+   - Uses community catchphrases
+
+2. STATEMENTS FLAGGED AS "DISTRESS" - RE-EVALUATE:
+   Review any statements flagged as indicating shame, regret, or distress.
+   For each, assess:
+   - WAS IT SAID IRONICALLY? (vocal tone, accompanying smile, exaggeration)
+   - IS IT A MEME REFERENCE? (recognize "doomer," "cope," "diamond hands," etc.)
+   - IS IT IN-GROUP PERFORMANCE? (bonding with audience through shared experience)
+   - IS IT GENUINE? (if so, what supporting evidence?)
+
+3. RECALIBRATION TABLE:
+   For each potentially ironic statement:
+   | Statement | Original Flag | Irony Likelihood | Revised Interpretation |
+   |-----------|---------------|------------------|------------------------|
+   | Example   | Shame/Regret  | HIGH (smiling)   | Entertainment/bonding  |
+
+4. CULTURAL CONTEXT ADJUSTMENTS:
+   If subject is identified as crypto/trading community:
+   - Bearish language ("doomer," "ngmi") = In-group mood expression, NOT depression
+   - Chart commentary ("disgusting," "beautiful") = Standard vernacular, NOT literal emotion
+   - Loss terminology ("rugged," "rekt") = Neutral technical terms
+   - Self-deprecating loss stories = Entertainment, often exaggerated
+
+   If subject is tech/startup community:
+   - Crisis language ("everything is on fire," "dumpster fire") = Normal vernacular
+   - Self-deprecation ("imposter syndrome," "I have no idea what I'm doing") = Often performative
+
+   If subject is gaming/streaming community:
+   - Rage expressions = Often theatrical for entertainment
+   - Self-roasts = Community bonding ritual
+
+5. DECEPTION ANALYSIS RECALIBRATION:
+   IMPORTANT: If subject shows incongruence (e.g., smiling while discussing losses),
+   in internet-native subjects this is often:
+   - NOT duping delight
+   - NOT hidden satisfaction
+   - IS: Ironic self-aware performance for audience entertainment
+
+   Re-evaluate any "incongruence" flags for irony/performance.
+
+6. FINAL FILTER OUTPUT:
+   - Subject digital nativity: LOW / MEDIUM / HIGH
+   - Statements requiring irony recalibration: [list]
+   - Revised deception/distress assessments: [list changes]
+   - Cultural blind spots in original analysis: [list]
+
+This filter prevents false positives in populations where irony and meme culture are normative."""
+
+
 # =============================================================================
 # NCI/CHASE HUGHES SYNTHESIS SUB-PROMPTS (Stage 6)
 # Based on The Behavior Ops Manual and Six-Minute X-Ray methodologies
@@ -1511,7 +1626,7 @@ VISUAL_PROMPTS = {
     'facs': VISUAL_FACS_PROMPT,
     'archetype': VISUAL_ARCHETYPE_PROMPT,
     'body_language': VISUAL_BODY_LANGUAGE_PROMPT,
-    'deception': VISUAL_DECEPTION_PROMPT,
+    'congruence': VISUAL_CONGRUENCE_PROMPT,  # Renamed from 'deception' - neutral framing
     # Subject identification for case file
     'subject_identification': SUBJECT_IDENTIFICATION_PROMPT,
     # NCI/Chase Hughes additions
@@ -1537,7 +1652,7 @@ AUDIO_PROMPTS = {
     # Core audio analysis
     'voice_characteristics': AUDIO_VOICE_CHARACTERISTICS_PROMPT,
     'sociolinguistic': AUDIO_SOCIOLINGUISTIC_PROMPT,
-    'deception_voice': AUDIO_DECEPTION_VOICE_PROMPT,
+    'credibility': AUDIO_CREDIBILITY_PROMPT,  # Renamed from 'deception_voice' - neutral framing
     # NCI/Chase Hughes additions
     'detail_mountain_valley': AUDIO_DETAIL_MOUNTAIN_VALLEY_PROMPT,
     'minimizing_language': AUDIO_MINIMIZING_LANGUAGE_PROMPT,
@@ -1553,6 +1668,8 @@ SYNTHESIS_PROMPTS = {
     'differential': SYNTHESIS_DIFFERENTIAL_PROMPT,
     'contradictions': SYNTHESIS_CONTRADICTIONS_PROMPT,
     'red_team': SYNTHESIS_RED_TEAM_PROMPT,
+    # Internet culture filter (runs before NCI for recalibration)
+    'irony_meme_filter': SYNTHESIS_IRONY_MEME_FILTER_PROMPT,
     # NCI/Chase Hughes additions
     'fate_model': SYNTHESIS_FATE_MODEL_PROMPT,
     'nci_deception_summary': SYNTHESIS_NCI_DECEPTION_SUMMARY_PROMPT,
