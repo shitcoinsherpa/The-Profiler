@@ -1283,50 +1283,192 @@ ALTERNATIVE EXPLANATIONS:
 This assessment follows NCI methodology: stress indicators suggest deception probability,
 but NO behavior definitively proves deception. Use as investigative guidance only."""
 
-SYNTHESIS_FINAL_INTEGRATION_PROMPT = """Create final integrated profile and operational recommendations.
+SYNTHESIS_FINAL_INTEGRATION_PROMPT = """Generate an FBI-style CASE FILE based on all behavioral analyses.
 
-ALL ANALYSIS DATA:
+ALL ANALYSIS DATA (includes subject identification):
 {previous_analyses}
 
 SYNTHESIS SUB-ANALYSES:
 {synthesis_results}
 
-**CRITICAL WEIGHTING INSTRUCTION:**
-When integrating findings, apply the following evidence hierarchy:
-- BODY LANGUAGE signals carry 5x weight of verbal content
-- MICRO-EXPRESSIONS carry 3x weight of macro-expressions  
-- INVOLUNTARY behaviors (blink rate spikes, fidgeting) outweigh voluntary
-- CROSS-MODAL CONFLICTS (gesture vs words) are primary deception indicators
-- Words alone are the LEAST reliable indicator
+**OUTPUT AS A STRUCTURED CASE FILE:**
 
-When verbal content contradicts non-verbal signals, ALWAYS trust the body.
+═══════════════════════════════════════════════════════════════════════════════
+                        BEHAVIORAL ANALYSIS UNIT
+                           CASE FILE REPORT
+═══════════════════════════════════════════════════════════════════════════════
 
-Integrate ALL above into the final profile:
+CLASSIFICATION: UNCLASSIFIED // FOR EDUCATIONAL USE ONLY
+ANALYST: Automated Behavioral Analysis System
 
-EXECUTIVE SUMMARY:
-- Subject overview (2-3 sentences)
-- Primary risk classification
-- Key behavioral finding (prioritize body language over verbal claims)
+───────────────────────────────────────────────────────────────────────────────
+SECTION 1: SUBJECT IDENTIFICATION
+───────────────────────────────────────────────────────────────────────────────
 
-OPERATIONAL RECOMMENDATIONS:
-- Optimal interview approach (rapport-based vs confrontational)
-- Psychological leverage points
-- De-escalation strategies
-- Behaviors to monitor in real-time
-- Predicted responses to various tactics
+[Extract from the SUBJECT_IDENTIFICATION analysis above. Include:]
+- NAME (if identified) or "UNIDENTIFIED SUBJECT"
+- KNOWN ALIASES / ONLINE HANDLES (if any)
+- PHYSICAL DESCRIPTION (age estimate, ethnicity, distinguishing features)
+- OCCUPATION / PUBLIC ROLE (if identifiable)
+- IDENTIFICATION CONFIDENCE: [HIGH/MEDIUM/LOW/UNIDENTIFIED]
 
-INVESTIGATIVE PRIORITIES:
-- Key areas to investigate further (flag where body contradicted words)
-- Associates/relationships to examine
-- Evidence sources based on personality
+───────────────────────────────────────────────────────────────────────────────
+SECTION 2: EXECUTIVE SUMMARY
+───────────────────────────────────────────────────────────────────────────────
+
+[2-3 sentence behavioral overview]
+PRIMARY CLASSIFICATION: [Behavioral archetype]
+KEY FINDING: [Most significant behavioral insight - prioritize body language]
+
+───────────────────────────────────────────────────────────────────────────────
+SECTION 3: THREAT ASSESSMENT
+───────────────────────────────────────────────────────────────────────────────
+
+OVERALL THREAT LEVEL: [NONE / LOW / MODERATE / HIGH / SEVERE]
+
+| Category           | Level    | Justification                          |
+|--------------------|----------|----------------------------------------|
+| Physical Threat    | [Level]  | [Brief evidence]                       |
+| Financial/Fraud    | [Level]  | [Brief evidence]                       |
+| Manipulation Risk  | [Level]  | [Brief evidence]                       |
+| Flight Risk        | [Level]  | [Brief evidence]                       |
+
+───────────────────────────────────────────────────────────────────────────────
+SECTION 4: PSYCHOLOGICAL PROFILE
+───────────────────────────────────────────────────────────────────────────────
+
+PRIMARY ARCHETYPE: [From archetype analysis]
+SECONDARY TRAITS: [Supporting characteristics]
+
+BIG FIVE PROFILE:
+- Openness: [Score]/100 - [Key evidence]
+- Conscientiousness: [Score]/100 - [Key evidence]
+- Extraversion: [Score]/100 - [Key evidence]
+- Agreeableness: [Score]/100 - [Key evidence]
+- Neuroticism: [Score]/100 - [Key evidence]
+
+DARK TRIAD INDICATORS:
+- Narcissism: [Score]/100 - [Behavioral evidence]
+- Machiavellianism: [Score]/100 - [Behavioral evidence]
+- Psychopathy: [Score]/100 - [Behavioral evidence]
+
+MBTI HYPOTHESIS: [Type] ([Confidence])
+
+───────────────────────────────────────────────────────────────────────────────
+SECTION 5: DECEPTION ANALYSIS
+───────────────────────────────────────────────────────────────────────────────
+
+OVERALL VERACITY: [TRUTHFUL / MIXED / DECEPTIVE]
+BTE SCORE: [Score] - [Interpretation]
+
+CRITICAL DECEPTION INDICATORS:
+[List top 3-5 moments with timestamps where deception markers clustered]
 
 BODY-VERBAL CONFLICT LOG:
-- List each instance where non-verbal signals contradicted verbal claims
-- For each conflict: what they said vs what their body revealed
-- Assign probability weight to body signal interpretation
+| Timestamp | Verbal Claim | Body Signal | Interpretation |
+|-----------|--------------|-------------|----------------|
+[Fill from analysis - minimum 3 entries]
 
-Synthesize ALL previous analyses into actionable intelligence.
-Do NOT repeat detailed findings - reference and integrate them."""
+COGNITIVE LOAD HOTSPOTS:
+[List topics/moments that produced highest cognitive stress]
+
+───────────────────────────────────────────────────────────────────────────────
+SECTION 6: OPERATIONAL RECOMMENDATIONS
+───────────────────────────────────────────────────────────────────────────────
+
+INTERVIEW APPROACH: [Recommended strategy with rationale]
+
+PSYCHOLOGICAL LEVERAGE POINTS:
+- [Point 1]
+- [Point 2]
+- [Point 3]
+
+DE-ESCALATION TRIGGERS:
+- [What to avoid / what calms subject]
+
+PREDICTED RESPONSES TO PRESSURE:
+- [How subject likely reacts when challenged]
+
+───────────────────────────────────────────────────────────────────────────────
+SECTION 7: INVESTIGATIVE PRIORITIES
+───────────────────────────────────────────────────────────────────────────────
+
+1. [Primary area requiring verification - with rationale]
+2. [Secondary investigation focus]
+3. [Tertiary investigation focus]
+
+STATEMENTS REQUIRING VERIFICATION:
+- [Specific claim with timestamp]
+- [Specific claim with timestamp]
+
+═══════════════════════════════════════════════════════════════════════════════
+                           END OF CASE FILE
+═══════════════════════════════════════════════════════════════════════════════
+
+**CRITICAL WEIGHTING (Apply throughout):**
+- Body language signals carry 5x weight of verbal content
+- Micro-expressions carry 3x weight of macro-expressions
+- Involuntary behaviors outweigh voluntary presentations
+- Cross-modal conflicts are primary deception indicators
+- When verbal contradicts non-verbal, TRUST THE BODY
+
+Generate the complete case file following this exact structure.
+Reference the subject identification analysis to fill Section 1."""
+
+
+# =============================================================================
+# SUBJECT IDENTIFICATION PROMPT (For Case File)
+# =============================================================================
+
+SUBJECT_IDENTIFICATION_PROMPT = """Identify and describe the subject in this video for a case file.
+
+Your task is to create a SUBJECT IDENTIFICATION section for an investigative case file.
+
+**IDENTIFICATION ATTEMPT:**
+1. Is this a KNOWN PUBLIC FIGURE? (celebrity, influencer, politician, business figure)
+   - If YES: Provide their name, known aliases/handles, and why you believe this identification
+   - If NO or UNCERTAIN: State "UNKNOWN SUBJECT" and proceed with physical description only
+
+2. CONFIDENCE LEVEL for identification: HIGH / MEDIUM / LOW / UNIDENTIFIED
+
+**PHYSICAL DESCRIPTION (Provide regardless of identification):**
+- Apparent gender: [Male/Female/Other]
+- Estimated age range: [e.g., 25-35]
+- Ethnicity/racial presentation: [description]
+- Hair: [color, style, length]
+- Facial hair: [if applicable]
+- Distinguishing features: [scars, tattoos, glasses, etc.]
+- Build/physique: [if visible]
+
+**PRESENTATION:**
+- Attire: [what they're wearing]
+- Grooming: [well-groomed, casual, disheveled, etc.]
+- Accessories: [jewelry, headwear, etc.]
+- Apparent socioeconomic indicators
+
+**VOCAL IDENTIFICATION:**
+- Accent: [regional, national origin if identifiable]
+- Speech pattern: [formal, casual, technical jargon usage]
+- Estimated education level based on vocabulary
+
+**DIGITAL PRESENCE (if identifiable):**
+- Known social media handles
+- Known platforms/channels
+- Estimated following/reach
+- Known associates (if public figure)
+
+**OUTPUT FORMAT:**
+If identified, start with:
+SUBJECT IDENTIFIED: [Full Name]
+CONFIDENCE: [HIGH/MEDIUM/LOW]
+BASIS FOR IDENTIFICATION: [how you recognized them]
+
+If not identified:
+SUBJECT: UNIDENTIFIED INDIVIDUAL
+DESIGNATION: [SUBJ-001 or similar]
+
+Then provide the physical description sections."""
+
 
 
 # =============================================================================
@@ -1340,6 +1482,8 @@ VISUAL_PROMPTS = {
     'archetype': VISUAL_ARCHETYPE_PROMPT,
     'body_language': VISUAL_BODY_LANGUAGE_PROMPT,
     'deception': VISUAL_DECEPTION_PROMPT,
+    # Subject identification for case file
+    'subject_identification': SUBJECT_IDENTIFICATION_PROMPT,
     # NCI/Chase Hughes additions
     'blink_rate': VISUAL_BLINK_RATE_PROMPT,
     'bte_scoring': VISUAL_BTE_SCORING_PROMPT,
@@ -1385,3 +1529,116 @@ SYNTHESIS_PROMPTS = {
     # Final integration (must be last)
     'final': SYNTHESIS_FINAL_INTEGRATION_PROMPT,
 }
+
+# =============================================================================
+# CASE FILE SYNTHESIS PROMPT (Replaces FBI final integration)
+# =============================================================================
+
+CASE_FILE_SYNTHESIS_PROMPT = """Generate a structured FBI-style CASE FILE based on all analyses.
+
+You are creating an official investigative case file. This must be formatted as a professional dossier.
+
+**SUBJECT INFORMATION:**
+{subject_info}
+
+**ALL ANALYSIS DATA:**
+{previous_analyses}
+
+**SYNTHESIS SUB-ANALYSES:**
+{synthesis_results}
+
+═══════════════════════════════════════════════════════════════════════════════
+                        BEHAVIORAL ANALYSIS UNIT
+                           CASE FILE REPORT
+═══════════════════════════════════════════════════════════════════════════════
+
+CASE ID: {case_id}
+DATE: {date}
+CLASSIFICATION: UNCLASSIFIED // FOR OFFICIAL USE ONLY
+ANALYST: Automated Behavioral Analysis System
+
+═══════════════════════════════════════════════════════════════════════════════
+SECTION 1: SUBJECT IDENTIFICATION
+═══════════════════════════════════════════════════════════════════════════════
+
+[Insert subject identification from subject_info - name if known, or physical description]
+[Include any known aliases, online handles, platform presence]
+
+═══════════════════════════════════════════════════════════════════════════════
+SECTION 2: EXECUTIVE SUMMARY
+═══════════════════════════════════════════════════════════════════════════════
+
+[2-3 sentence overview of who this subject is and what the behavioral analysis reveals]
+[Primary behavioral classification]
+[Key finding in one sentence]
+
+═══════════════════════════════════════════════════════════════════════════════
+SECTION 3: THREAT ASSESSMENT
+═══════════════════════════════════════════════════════════════════════════════
+
+OVERALL THREAT LEVEL: [NONE / LOW / MODERATE / HIGH / SEVERE]
+
+Risk Categories:
+- Physical Threat: [Level] - [Brief justification]
+- Financial/Fraud Risk: [Level] - [Brief justification]
+- Manipulation Risk: [Level] - [Brief justification]
+- Flight Risk: [Level] - [Brief justification]
+
+═══════════════════════════════════════════════════════════════════════════════
+SECTION 4: PSYCHOLOGICAL PROFILE
+═══════════════════════════════════════════════════════════════════════════════
+
+PRIMARY BEHAVIORAL ARCHETYPE: [From archetype analysis]
+SECONDARY TRAITS: [Supporting characteristics]
+
+BIG FIVE PROFILE:
+[Include scores with brief behavioral evidence]
+
+DARK TRIAD ASSESSMENT:
+[Include scores with behavioral evidence]
+
+MBTI HYPOTHESIS: [Type] - [Confidence level]
+
+═══════════════════════════════════════════════════════════════════════════════
+SECTION 5: DECEPTION ANALYSIS
+═══════════════════════════════════════════════════════════════════════════════
+
+OVERALL VERACITY ASSESSMENT: [TRUTHFUL / MIXED / DECEPTIVE]
+
+DECEPTION INDICATORS DETECTED:
+[List key moments with timestamps where deception markers appeared]
+
+COGNITIVE LOAD HOTSPOTS:
+[List topics/moments that produced highest cognitive stress]
+
+BODY-VERBAL CONFLICTS:
+[Table of key conflicts between what was said vs body language]
+
+═══════════════════════════════════════════════════════════════════════════════
+SECTION 6: OPERATIONAL RECOMMENDATIONS
+═══════════════════════════════════════════════════════════════════════════════
+
+INTERVIEW APPROACH: [Recommended strategy]
+PSYCHOLOGICAL LEVERAGE POINTS: [What can be used]
+DE-ESCALATION TRIGGERS: [What to avoid]
+PREDICTED RESPONSES: [How subject likely reacts to pressure]
+
+═══════════════════════════════════════════════════════════════════════════════
+SECTION 7: INVESTIGATIVE PRIORITIES
+═══════════════════════════════════════════════════════════════════════════════
+
+[List specific areas requiring further investigation]
+[Flag any statements that warrant verification]
+[Note any associates mentioned or implied]
+
+═══════════════════════════════════════════════════════════════════════════════
+                           END OF CASE FILE
+═══════════════════════════════════════════════════════════════════════════════
+
+CRITICAL WEIGHTING (Apply throughout):
+- Body language signals carry 5x weight of verbal content
+- Involuntary behaviors outweigh voluntary presentations
+- Cross-modal conflicts are primary deception indicators
+
+Generate the complete case file following this exact structure."""
+

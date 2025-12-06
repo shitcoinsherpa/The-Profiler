@@ -7,7 +7,7 @@ import cv2
 import base64
 import numpy as np
 import os
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 
 def extract_frames_from_video(
@@ -260,5 +260,142 @@ def validate_video_file(video_path: str) -> dict:
             'resolution': (width, height),
             'file_size_mb': file_size_mb
         }
+    finally:
+        cap.release()
+
+
+def extract_mugshot(
+    video_path: str,
+    target_size: int = 400,
+    jpeg_quality: int = 90,
+    search_first_percent: float = 0.3
+) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Extract the best mugshot-style frame from video.
+    Searches the first portion of the video for a clear frontal face.
+
+    Args:
+        video_path: Path to video file
+        target_size: Target size for mugshot (square)
+        jpeg_quality: JPEG quality for output
+        search_first_percent: Search first X% of video (default 30%)
+
+    Returns:
+        Tuple of (base64_mugshot, mugshot_file_path) or (None, None) if no face found
+    """
+    import tempfile
+
+    if not os.path.exists(video_path):
+        return None, None
+
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        return None, None
+
+    try:
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+        if total_frames <= 0 or fps <= 0:
+            return None, None
+
+        # Search first portion of video
+        search_frames = int(total_frames * search_first_percent)
+
+        # Sample every N frames (about 1 per second)
+        sample_interval = max(1, int(fps))
+
+        # Try to load face detector
+        face_cascade = None
+        cascade_paths = [
+            cv2.data.haarcascades + 'haarcascade_frontalface_default.xml',
+            'haarcascade_frontalface_default.xml',
+        ]
+        for cascade_path in cascade_paths:
+            if os.path.exists(cascade_path):
+                face_cascade = cv2.CascadeClassifier(cascade_path)
+                break
+
+        best_frame = None
+        best_face_size = 0
+        best_frame_idx = 0
+
+        for frame_idx in range(0, search_frames, sample_interval):
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+            ret, frame = cap.read()
+
+            if not ret:
+                continue
+
+            # If we have face detection, use it
+            if face_cascade is not None:
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                faces = face_cascade.detectMultiScale(
+                    gray,
+                    scaleFactor=1.1,
+                    minNeighbors=5,
+                    minSize=(50, 50)
+                )
+
+                if len(faces) > 0:
+                    # Find largest face (likely the subject)
+                    for (x, y, w, h) in faces:
+                        face_size = w * h
+                        if face_size > best_face_size:
+                            best_face_size = face_size
+                            best_frame = frame.copy()
+                            best_frame_idx = frame_idx
+            else:
+                # No face detection - just grab a frame from early in the video
+                if best_frame is None and frame_idx > int(fps * 2):  # After 2 seconds
+                    best_frame = frame.copy()
+                    best_frame_idx = frame_idx
+
+        # If no face found with detection, grab a frame at 5% into video
+        if best_frame is None:
+            fallback_idx = int(total_frames * 0.05)
+            cap.set(cv2.CAP_PROP_POS_FRAMES, fallback_idx)
+            ret, frame = cap.read()
+            if ret:
+                best_frame = frame
+                best_frame_idx = fallback_idx
+
+        if best_frame is None:
+            return None, None
+
+        # Crop to center square if needed
+        h, w = best_frame.shape[:2]
+        if w > h:
+            # Landscape - crop sides
+            start_x = (w - h) // 2
+            cropped = best_frame[:, start_x:start_x + h]
+        elif h > w:
+            # Portrait - crop top/bottom (favor top for face)
+            start_y = int((h - w) * 0.2)  # 20% from top
+            cropped = best_frame[start_y:start_y + w, :]
+        else:
+            cropped = best_frame
+
+        # Resize to target
+        mugshot = cv2.resize(cropped, (target_size, target_size), interpolation=cv2.INTER_AREA)
+
+        # Save to temp file
+        temp_dir = tempfile.gettempdir()
+        mugshot_path = os.path.join(temp_dir, f"mugshot_{os.path.basename(video_path)}.jpg")
+        cv2.imwrite(mugshot_path, mugshot, [cv2.IMWRITE_JPEG_QUALITY, jpeg_quality])
+
+        # Convert to base64
+        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_quality]
+        success, encoded_image = cv2.imencode('.jpg', mugshot, encode_param)
+
+        if not success:
+            return None, mugshot_path
+
+        base64_mugshot = base64.b64encode(encoded_image).decode('utf-8')
+
+        return base64_mugshot, mugshot_path
+
     finally:
         cap.release()

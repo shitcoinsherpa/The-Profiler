@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from logger import AnalysisLogger
 from audio_extractor import extract_audio_from_video
 from api_client import OpenRouterClient
+from frame_extractor import extract_mugshot
 from prompts import (
     SAM_CHRISTENSEN_PROMPT,
     GEMINI_COMPREHENSIVE_PROMPT,
@@ -229,6 +230,16 @@ class BehavioralProfiler:
 
             logger.info(f"Video loaded: {video_duration:.1f}s, {video_width}x{video_height}, {len(base64_video) / 1024 / 1024:.1f}MB base64")
 
+            # Extract mugshot for case file
+            mugshot_base64 = None
+            mugshot_path = None
+            try:
+                mugshot_base64, mugshot_path = extract_mugshot(video_path)
+                if mugshot_base64:
+                    logger.info(f"Mugshot captured from video")
+            except Exception as mug_err:
+                logger.warning(f"Mugshot capture failed: {mug_err}")
+
             self._update_progress(
                 progress_callback,
                 f"✓ STEP 1/6: Video loaded ({video_duration:.1f}s, native processing)",
@@ -376,6 +387,11 @@ class BehavioralProfiler:
                 'processing_time_seconds': round(processing_time, 2),
                 'video_metadata': video_metadata,
                 'audio_metadata': audio_metadata,
+                'mugshot': {
+                    'base64': mugshot_base64,
+                    'path': mugshot_path,
+                    'available': mugshot_base64 is not None
+                },
                 'models_used': {
                     'essence': self.model_config.essence_model,
                     'multimodal': self.model_config.multimodal_model,
@@ -395,6 +411,8 @@ class BehavioralProfiler:
                     'differential': differential_analysis,
                     'contradictions': contradictions_analysis,
                     'red_team': red_team_analysis,
+                    # Subject identification for case file
+                    'subject_identification': formatted.get('subject_identification', ''),
                     # NCI/Chase Hughes sub-analyses (for PDF report)
                     **nci_sub_analyses
                 },

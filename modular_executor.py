@@ -1092,6 +1092,10 @@ def format_modular_results(results: Dict[str, StageResult]) -> Dict[str, str]:
 
                 formatted[key] = visual.sub_results[key].result
 
+        # Extract subject identification for case file
+        if 'subject_identification' in visual.sub_results and visual.sub_results['subject_identification'].success:
+            formatted['subject_identification'] = visual.sub_results['subject_identification'].result
+
 
 
     # Multimodal section

@@ -635,8 +635,8 @@ def run_profiling_analysis(video_file, essence_model, multimodal_model, audio_mo
         Tuple of (progress_html, status, essence, multimodal, audio, liwc, fbi, nci, transcript, confidence, json_output, json_file)
     """
     # Helper to build yield tuple with optional viz outputs
-    def build_yield(progress, status, essence, multimodal, audio, liwc, fbi, nci, transcript, confidence, json_out, file_out, viz_conf=None, viz_big5=None, viz_dark=None, viz_threat=None, viz_mbti=None, viz_bte=None, viz_blink=None, viz_fate=None, viz_nci=None):
-        base = (progress, status, essence, multimodal, audio, liwc, fbi, nci, transcript, confidence, json_out, file_out)
+    def build_yield(progress, status, essence, multimodal, audio, liwc, fbi, nci, transcript, confidence, json_out, file_out, mugshot=None, subject_id="", viz_conf=None, viz_big5=None, viz_dark=None, viz_threat=None, viz_mbti=None, viz_bte=None, viz_blink=None, viz_fate=None, viz_nci=None):
+        base = (progress, status, essence, multimodal, audio, liwc, fbi, nci, transcript, confidence, json_out, file_out, mugshot, subject_id)
         if VISUALIZATIONS_AVAILABLE:
             return base + (viz_conf, viz_big5, viz_dark, viz_threat, viz_mbti, viz_bte, viz_blink, viz_fate, viz_nci)
         return base
@@ -883,6 +883,24 @@ def run_profiling_analysis(video_file, essence_model, multimodal_model, audio_mo
                 logger.warning(f"Visualization generation failed: {viz_err}")
                 viz_status = "\n⚠️ Visualizations unavailable"
 
+        # Extract mugshot image from result (decode base64 to PIL Image)
+        mugshot_pil = None
+        subject_id_text = "Subject identification not available"
+        try:
+            mugshot_data = result.get('mugshot', {})
+            if mugshot_data.get('available') and mugshot_data.get('base64'):
+                import base64 as b64
+                from io import BytesIO
+                from PIL import Image
+                img_bytes = b64.b64decode(mugshot_data['base64'])
+                mugshot_pil = Image.open(BytesIO(img_bytes))
+                logger.info("Mugshot loaded for display")
+            
+            # Get subject identification from analyses
+            subject_id_text = result.get('analyses', {}).get('subject_identification', 'Subject identification not available')
+        except Exception as mug_err:
+            logger.warning(f"Mugshot display failed: {mug_err}")
+
         # Final status
         final_status = f"""✓ ANALYSIS COMPLETE
 
@@ -901,6 +919,7 @@ Download JSON report below.{saved_msg}"""
             formatted.get('transcript', 'Transcription not available'),
             formatted.get('confidence', 'Confidence scoring not available'),
             json_output, temp_file.name,
+            mugshot_pil, subject_id_text,
             viz_confidence, viz_big_five, viz_dark_triad, viz_threat, viz_mbti,
             viz_bte, viz_blink, viz_fate, viz_nci
         )
@@ -1568,6 +1587,26 @@ def create_interface():
             with gr.Tab("🎯 FBI Profile & Insights"):
                 gr.Markdown("*Synthesized behavioral profile with visual analytics*")
 
+                # Subject Identification with Mugshot
+                with gr.Row():
+                    with gr.Column(scale=1):
+                        mugshot_image = gr.Image(
+                            label="Subject",
+                            height=200,
+                            width=200,
+                            show_label=True,
+                            type="pil",
+                            interactive=False
+                        )
+                    with gr.Column(scale=3):
+                        subject_id_output = gr.Textbox(
+                            label="Subject Identification",
+                            value="Subject identification will appear here after analysis...",
+                            lines=6,
+                            interactive=False,
+                            show_copy_button=True
+                        )
+
                 # Visual Analytics Row (charts)
                 if VISUALIZATIONS_AVAILABLE:
                     with gr.Row():
@@ -1762,12 +1801,19 @@ def create_interface():
                     )
 
             with gr.Row():
-                profile_dropdown = gr.Dropdown(
-                    choices=[],
-                    label="Select Profile Report",
-                    info="Choose a specific analysis to view",
-                    interactive=True
-                )
+                with gr.Column(scale=4):
+                    profile_dropdown = gr.Dropdown(
+                        choices=[],
+                        label="Select Profile Report",
+                        info="Choose a specific analysis to view",
+                        interactive=True
+                    )
+                with gr.Column(scale=1):
+                    delete_profile_btn = gr.Button(
+                        "🗑️ Delete Profile",
+                        variant="stop",
+                        size="sm"
+                    )
 
             # Profile details display
             with gr.Accordion("Profile Details", open=True):
@@ -1778,7 +1824,8 @@ def create_interface():
                         history_essence = gr.Textbox(
                             label="Sam Christensen Essence",
                             value="",
-                            lines=15,
+                            lines=20,
+                            max_lines=30,
                             interactive=False,
                             show_copy_button=True
                         )
@@ -1786,7 +1833,8 @@ def create_interface():
                         history_multimodal = gr.Textbox(
                             label="Multimodal Analysis",
                             value="",
-                            lines=15,
+                            lines=20,
+                            max_lines=30,
                             interactive=False,
                             show_copy_button=True
                         )
@@ -1794,7 +1842,8 @@ def create_interface():
                         history_audio = gr.Textbox(
                             label="Audio/Voice Analysis",
                             value="",
-                            lines=15,
+                            lines=20,
+                            max_lines=30,
                             interactive=False,
                             show_copy_button=True
                         )
@@ -1802,7 +1851,8 @@ def create_interface():
                         history_liwc = gr.Textbox(
                             label="LIWC Analysis",
                             value="",
-                            lines=15,
+                            lines=20,
+                            max_lines=30,
                             interactive=False,
                             show_copy_button=True
                         )
@@ -1810,7 +1860,8 @@ def create_interface():
                         history_fbi = gr.Textbox(
                             label="FBI Behavioral Synthesis",
                             value="",
-                            lines=15,
+                            lines=20,
+                            max_lines=30,
                             interactive=False,
                             show_copy_button=True
                         )
@@ -1847,6 +1898,48 @@ def create_interface():
                 fn=do_refresh_subjects,
                 inputs=[],
                 outputs=[subject_dropdown]
+            )
+
+            # Delete profile handler
+            def delete_selected_profile(profile_id, subject_id):
+                """Delete the selected profile and refresh the list."""
+                if not profile_id:
+                    return (
+                        gr.Dropdown(choices=[], value=None),
+                        "*No profile selected*",
+                        "", "", "", "", ""
+                    )
+
+                # profile_id is already the database ID (from dropdown value)
+                db = get_database()
+                db.delete_profile(int(profile_id))
+
+                # Refresh the profile list
+                if subject_id:
+                    summary, choices, default = load_subject_profiles(subject_id)
+                    return (
+                        gr.Dropdown(choices=choices, value=None),
+                        "*Profile deleted. Select another profile.*",
+                        "", "", "", "", ""
+                    )
+                return (
+                    gr.Dropdown(choices=[], value=None),
+                    "*Profile deleted.*",
+                    "", "", "", "", ""
+                )
+
+            delete_profile_btn.click(
+                fn=delete_selected_profile,
+                inputs=[profile_dropdown, subject_dropdown],
+                outputs=[
+                    profile_dropdown,
+                    history_meta,
+                    history_essence,
+                    history_multimodal,
+                    history_audio,
+                    history_liwc,
+                    history_fbi
+                ]
             )
 
         # ==================================================================================
@@ -1968,7 +2061,9 @@ def create_interface():
             transcript_output,
             confidence_output,
             json_output,
-            download_button
+            download_button,
+            mugshot_image,
+            subject_id_output
         ]
 
         # Add visualization outputs if available (core + NCI charts)
