@@ -997,14 +997,28 @@ SYNTHESIS_THREAT_PROMPT = """Generate threat assessment matrix.
 ANALYSIS DATA TO SYNTHESIZE:
 {previous_analyses}
 
-Based on the above analyses, rate 0-100 with evidence:
+**STEP 1: IDENTIFY SUBJECT TYPE** (from Subject Identification analysis)
+- Physical Threat Context (law enforcement, violence history)
+- Financial/Influence Context (trader, influencer, executive, crypto)
+- Political/Activism Context (politician, organizer, lobbyist)
+- General/Unknown Context
+
+**STEP 2: RATE METRICS 0-100 with evidence:**
 - Volatility Risk: [score] | [evidence]
 - Manipulation Capacity: [score] | [evidence]
 - Compliance Likelihood: [score] | [evidence]
 - Stress Resilience: [score] | [evidence]
 - Ethical Boundaries: [score] | [evidence]
 
+**STEP 3: CALIBRATED OVERALL THREAT LEVEL**
+Apply context-specific weighting:
+- Physical Context: Weight Volatility Risk 2x
+- Financial/Influence Context: Weight Manipulation Capacity 2x, Ethical Boundaries 1.5x
+- Political Context: Weight Manipulation Capacity 1.5x, Ethical Boundaries 2x
+- General: Equal weighting
+
 THREAT LEVEL: LOW / MODERATE / HIGH / CRITICAL
+(Explicitly state which weighting was applied and why)
 
 Justify with:
 - Risk of violence
@@ -1012,6 +1026,7 @@ Justify with:
 - Risk of evidence destruction
 - Cooperation likelihood
 - Deception capability
+- CONTEXT-SPECIFIC RISKS (market manipulation, influence operations, etc.)
 
 Be specific and evidence-based."""
 
@@ -1411,6 +1426,21 @@ STATEMENTS REQUIRING VERIFICATION:
 - Involuntary behaviors outweigh voluntary presentations
 - Cross-modal conflicts are primary deception indicators
 - When verbal contradicts non-verbal, TRUST THE BODY
+- Facial Etching analysis is SUPPLEMENTARY only (low scientific validity for personality prediction)
+  Use it for physical baseline description, NOT as primary personality evidence
+
+**CONFLICT RESOLUTION PROTOCOL:**
+You are the Lead Investigator. When analyses conflict (e.g., Audio says "Truth" while Body says "Deceptive"):
+1. Check TIMING/LATENCY - delays suggest cognitive load
+2. Check CLUSTER DENSITY - multiple simultaneous indicators outweigh isolated signals
+3. ADJUDICATE with explicit reasoning - do not just list conflicts, RESOLVE them
+4. State your ruling: "RULING: [Truthful/Deceptive/Inconclusive] because [specific evidence]"
+
+**QUANTITATIVE BACKING REQUIREMENT:**
+All personality/behavioral claims MUST cite specific LIWC metrics:
+- BAD: "Subject uses intellectualization"
+- GOOD: "Subject uses intellectualization (LIWC Cognitive Process: 19.5%, Analytical Thinking: 42)"
+Include at least 3 LIWC metrics in the Psychological Profile section.
 
 Generate the complete case file following this exact structure.
 Reference the subject identification analysis to fill Section 1."""

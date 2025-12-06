@@ -1532,14 +1532,14 @@ def create_interface():
             show_label=False
         )
 
-        # Results Section - Consolidated into 2 tabs with collapsible sections
+        # Results Section - Analysis Results
         gr.HTML('<div class="section-header" style="margin-top: 30px;">Analysis Results</div>')
 
         with gr.Tabs():
-            with gr.Tab("📊 Analysis Components"):
-                gr.Markdown("*Individual analysis stages - click to expand each section*")
+            with gr.Tab("📂 Raw Analysis Data"):
+                gr.Markdown("*Technical details - expand for raw outputs*")
 
-                with gr.Accordion("🎭 Behavioral Archetype (Visual Essence)", open=False):
+                with gr.Accordion("Visual Essence", open=False):
                     essence_output = gr.Textbox(
                         label="Forensic Visual Essence Analysis",
                         value="Results will appear here after analysis...",
@@ -1548,7 +1548,7 @@ def create_interface():
                         show_copy_button=True
                     )
 
-                with gr.Accordion("🔬 Multimodal Behavioral Analysis", open=False):
+                with gr.Accordion("Multimodal Analysis", open=False):
                     multimodal_output = gr.Textbox(
                         label="Comprehensive Multimodal Analysis (Video + Audio)",
                         value="Results will appear here after analysis...",
@@ -1557,7 +1557,7 @@ def create_interface():
                         show_copy_button=True
                     )
 
-                with gr.Accordion("🎤 Audio/Voice Analysis", open=False):
+                with gr.Accordion("Audio/Voice", open=False):
                     audio_output = gr.Textbox(
                         label="Voice Forensics & Paralinguistic Analysis",
                         value="Results will appear here after analysis...",
@@ -1566,7 +1566,7 @@ def create_interface():
                         show_copy_button=True
                     )
 
-                with gr.Accordion("📝 LIWC Linguistic Analysis", open=False):
+                with gr.Accordion("LIWC Metrics", open=True):
                     liwc_output = gr.Textbox(
                         label="Linguistic Inquiry & Word Count Analysis",
                         value="Results will appear here after analysis...",
@@ -1575,7 +1575,7 @@ def create_interface():
                         show_copy_button=True
                     )
 
-                with gr.Accordion("🗣️ Speech Transcript", open=False):
+                with gr.Accordion("Transcript", open=True):
                     transcript_output = gr.Textbox(
                         label="Audio Transcription",
                         value="Speech transcript will appear here after analysis...",
@@ -1584,8 +1584,8 @@ def create_interface():
                         show_copy_button=True
                     )
 
-            with gr.Tab("🎯 FBI Profile & Insights"):
-                gr.Markdown("*Synthesized behavioral profile with visual analytics*")
+            with gr.Tab("🎯 FBI Behavioral Profile"):
+                gr.Markdown("*WHO they are: Psychology, personality, and threat assessment*")
 
                 # Subject Identification with Mugshot
                 with gr.Row():
@@ -1602,13 +1602,18 @@ def create_interface():
                         subject_id_output = gr.Textbox(
                             label="Subject Identification",
                             value="Subject identification will appear here after analysis...",
-                            lines=6,
+                            lines=10,
+                            max_lines=20,
                             interactive=False,
                             show_copy_button=True
                         )
 
+                # Spacer before visualizations
+                gr.HTML('<div style="height: 20px;"></div>')
+
                 # Visual Analytics Row (charts)
                 if VISUALIZATIONS_AVAILABLE:
+                    gr.Markdown("### Visual Analytics")
                     with gr.Row():
                         with gr.Column(scale=1):
                             confidence_gauge = gr.Plot(
@@ -1621,6 +1626,7 @@ def create_interface():
                                 show_label=False
                             )
 
+                    gr.HTML('<div style="height: 15px;"></div>')
                     with gr.Row():
                         with gr.Column(scale=1):
                             dark_triad_chart = gr.Plot(
@@ -1633,6 +1639,7 @@ def create_interface():
                                 show_label=False
                             )
 
+                    gr.HTML('<div style="height: 15px;"></div>')
                     # MBTI Chart Row
                     with gr.Row():
                         with gr.Column(scale=1):
@@ -1675,8 +1682,8 @@ def create_interface():
                         show_copy_button=True
                     )
 
-            with gr.Tab("🔍 NCI Deception Analysis"):
-                gr.Markdown("*Chase Hughes / NCI University behavioral deception indicators*")
+            with gr.Tab("🔍 Deception Detection"):
+                gr.Markdown("*Are they LYING? Credibility and deception indicators*")
 
                 # NCI Visual Analytics Row 1 (BTE and Blink Rate)
                 if VISUALIZATIONS_AVAILABLE:

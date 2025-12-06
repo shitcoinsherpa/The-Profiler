@@ -42,6 +42,14 @@ try:
     MODULAR_AVAILABLE = True
 except ImportError:
     MODULAR_AVAILABLE = False
+# Import CV-based blink detection and fusion
+try:
+    from blink_detector import get_blink_metrics_for_prompt, fuse_blink_metrics, MEDIAPIPE_AVAILABLE
+    BLINK_DETECTION_AVAILABLE = MEDIAPIPE_AVAILABLE
+except ImportError:
+    BLINK_DETECTION_AVAILABLE = False
+    def fuse_blink_metrics(cv_metrics, llm_output):
+        return {'fused_bpm': 0, 'fusion_method': 'unavailable', 'confidence': 'none'}
 
 logger = logging.getLogger(__name__)
 
@@ -239,6 +247,15 @@ class BehavioralProfiler:
                     logger.info(f"Mugshot captured from video")
             except Exception as mug_err:
                 logger.warning(f"Mugshot capture failed: {mug_err}")
+            # Run CV-based blink detection (ground truth for LLM blink estimates)
+            blink_validation = {'available': False, 'formatted_text': 'Blink detection not available', 'metrics': {}}
+            if BLINK_DETECTION_AVAILABLE:
+                try:
+                    blink_validation = get_blink_metrics_for_prompt(video_path)
+                    if blink_validation['available']:
+                        logger.info(f"CV blink detection: {blink_validation['metrics'].get('total_blinks', 0)} blinks, {blink_validation['metrics'].get('bpm', 0):.1f} BPM")
+                except Exception as blink_err:
+                    logger.warning(f"Blink detection failed: {blink_err}")
 
             self._update_progress(
                 progress_callback,
@@ -332,6 +349,7 @@ class BehavioralProfiler:
                 multimodal_model=self.model_config.multimodal_model,
                 audio_model=self.model_config.audio_model,
                 synthesis_model=self.model_config.synthesis_model,
+                transcript=transcription_result.transcript if transcription_result and transcription_result.success else None,
                 progress_callback=progress_callback,
                 results_callback=results_callback
             )
@@ -372,6 +390,13 @@ class BehavioralProfiler:
                 'fate_model': formatted.get('fate_model', ''),
                 'nci_deception_summary': formatted.get('nci_deception_summary', ''),
             }
+
+            # Fuse CV blink detection with LLM blink analysis for higher accuracy
+            llm_blink_output = formatted.get('blink_rate', '')
+            blink_fusion = fuse_blink_metrics(blink_validation, llm_blink_output)
+            if blink_fusion.get('fused_bpm', 0) > 0:
+                logger.info(f"Blink fusion: CV={blink_validation.get('metrics', {}).get('bpm', 0):.1f}, "
+                           f"Fused={blink_fusion['fused_bpm']:.1f} ({blink_fusion['fusion_method']})")
 
             # Calculate execution times from modular results
             total_modular_time = sum(r.execution_time for r in modular_results.values())
@@ -423,6 +448,18 @@ class BehavioralProfiler:
                     'word_count': transcription_result.word_count if transcription_result and transcription_result.success else 0,
                     'audio_quality': transcription_result.audio_quality if transcription_result and transcription_result.success else '',
                     'available': transcription_result.success if transcription_result else False
+                },
+                'blink_validation': {
+                    'available': blink_validation['available'],
+                    'formatted_text': blink_validation['formatted_text'],
+                    'metrics': blink_validation['metrics'],
+                    # Fused metrics combining CV + LLM for higher accuracy
+                    'fused_bpm': blink_fusion.get('fused_bpm', 0),
+                    'fused_baseline': blink_fusion.get('fused_baseline', 0),
+                    'fused_peak': blink_fusion.get('fused_peak', 0),
+                    'fusion_method': blink_fusion.get('fusion_method', 'none'),
+                    'fusion_confidence': blink_fusion.get('confidence', 'none'),
+                    'cv_llm_discrepancy': blink_fusion.get('discrepancy_flag', False)
                 },
                 'status': 'completed'
             }

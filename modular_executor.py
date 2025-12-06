@@ -32,6 +32,8 @@ from modular_prompts import (
 
 )
 
+from signal_collapsing import collapse_analysis_outputs
+
 
 
 logger = logging.getLogger(__name__)
@@ -662,6 +664,10 @@ class ModularAnalysisExecutor:
 
         model: str,
 
+        transcript: Optional[str] = None,
+
+        visual_context: Optional[str] = None,
+
         on_complete: Callable[[str, str], None] = None
 
     ) -> StageResult:
@@ -690,11 +696,40 @@ class ModularAnalysisExecutor:
 
         logger.info(f"Starting audio analysis with {len(AUDIO_PROMPTS)} sub-analyses")
 
+        # Inject transcript into LIWC prompt if available
+        audio_prompts = dict(AUDIO_PROMPTS)
+        if transcript and 'liwc' in audio_prompts:
+            audio_prompts['liwc'] = audio_prompts['liwc'].replace(
+                '{transcript}',
+                transcript
+            )
+            logger.info(f"Injected transcript ({len(transcript)} chars) into LIWC prompt")
+        elif 'liwc' in audio_prompts:
+            audio_prompts['liwc'] = audio_prompts['liwc'].replace(
+                '{transcript}',
+                '[Transcript unavailable - analyze speech patterns from audio]'
+            )
 
+        # Inject visual context into voice and deception prompts for cross-modal correlation
+        if visual_context:
+            context_injection = f"""
+
+=== CROSS-MODAL CONTEXT (from visual analysis) ===
+{visual_context}
+
+IMPORTANT: Correlate vocal patterns with the visual indicators above.
+Flag any timestamps where vocal stress and visual stress DIVERGE or CONVERGE.
+=================================================
+"""
+            # Inject into voice characteristics and deception prompts
+            for key in ['voice_characteristics', 'deception_voice', 'sociolinguistic']:
+                if key in audio_prompts:
+                    audio_prompts[key] = audio_prompts[key] + context_injection
+            logger.info(f"Injected visual context into audio prompts for cross-modal analysis")
 
         return self._run_parallel_sub_analyses(
 
-            prompts=AUDIO_PROMPTS,
+            prompts=audio_prompts,
 
             stage='audio',
 
@@ -852,6 +887,8 @@ class ModularAnalysisExecutor:
 
         synthesis_model: str,
 
+        transcript: Optional[str] = None,
+
         progress_callback: Callable[[str, int], None] = None,
 
         results_callback: Callable[[str, str], None] = None
@@ -918,6 +955,20 @@ class ModularAnalysisExecutor:
 
         all_results['visual'] = visual_result
 
+        # Extract visual context for cross-pollination to audio stage
+        visual_context = None
+        if visual_result.success:
+            deception_result = visual_result.sub_results.get('deception')
+            stress_result = visual_result.sub_results.get('stress_clusters')
+            visual_parts = []
+            if deception_result and deception_result.success:
+                visual_parts.append("VISUAL DECEPTION INDICATORS:\n" + deception_result.result[:2000])
+            if stress_result and stress_result.success:
+                visual_parts.append("STRESS CLUSTERS:\n" + stress_result.result[:1000])
+            if visual_parts:
+                visual_context = "\n\n".join(visual_parts)
+                logger.info(f"Extracted visual context ({len(visual_context)} chars) for audio cross-pollination")
+
         update_progress(f"✓ Visual analysis complete ({len([r for r in visual_result.sub_results.values() if r.success])}/4 sub-analyses)", 3)
 
 
@@ -974,6 +1025,10 @@ class ModularAnalysisExecutor:
 
                 model=audio_model,
 
+                transcript=transcript,
+
+                visual_context=visual_context,
+
                 on_complete=results_callback
 
             )
@@ -1021,6 +1076,20 @@ class ModularAnalysisExecutor:
 {all_results['audio'].combined_text}
 
 """
+
+        # Apply Signal Collapsing Layer to deduplicate timestamped events
+        try:
+            stage_texts = {
+                'visual': visual_result.combined_text,
+                'multimodal': all_results['multimodal'].combined_text,
+                'audio': all_results['audio'].combined_text
+            }
+            collapsed_summary, collapsed_events = collapse_analysis_outputs(stage_texts)
+            if collapsed_events:
+                previous_analyses = collapsed_summary + "\n\n" + previous_analyses
+                logger.info(f"Signal Collapsing: {len(collapsed_events)} events collapsed")
+        except Exception as sc_err:
+            logger.warning(f"Signal collapsing failed: {sc_err}")
 
 
 
