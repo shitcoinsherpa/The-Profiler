@@ -10,27 +10,26 @@ from typing import Dict, Callable, Optional
 from datetime import datetime
 from dataclasses import dataclass
 
-from logger import AnalysisLogger
-from audio_extractor import extract_audio_from_video
+from infra.logger import AnalysisLogger
+from media.audio_extractor import extract_audio_from_video
 from api_client import OpenRouterClient
-from frame_extractor import extract_mugshot
-from prompts import (
+from media.frame_extractor import extract_mugshot
+from prompts.prompts import (
     SAM_CHRISTENSEN_PROMPT,
     GEMINI_COMPREHENSIVE_PROMPT,
     FBI_SYNTHESIS_PROMPT,
     AUDIO_ANALYSIS_PROMPT,
     LIWC_ANALYSIS_PROMPT
 )
-from models_config import (
+from config.models_config import (
     StageModelConfig,
     DEFAULT_MODEL_CONFIG,
     get_model_info,
     validate_model_for_stage
 )
-from cache_manager import check_cache, store_in_cache, get_cache
-from prompt_templates import get_template_manager, get_prompt_for_stage
-from transcription import transcribe_audio, format_transcript_for_display, TranscriptionResult
-from confidence_scoring import (
+from infra.cache_manager import check_cache, store_in_cache, get_cache
+from media.transcription import transcribe_audio, format_transcript_for_display, TranscriptionResult
+from core.confidence_scoring import (
     calculate_analysis_confidence,
     add_confidence_to_result,
     format_confidence_for_display
@@ -38,18 +37,25 @@ from confidence_scoring import (
 
 # Import modular executor for focused sub-analyses
 try:
-    from modular_executor import ModularAnalysisExecutor, format_modular_results
+    from core.modular_executor import ModularAnalysisExecutor, format_modular_results
     MODULAR_AVAILABLE = True
 except ImportError:
     MODULAR_AVAILABLE = False
-# Import CV-based blink detection and fusion
+from analysis.blink_detector import get_blink_metrics_for_prompt, fuse_blink_metrics
+
+# Import spectrogram analyzer for voice stress visualization
 try:
-    from blink_detector import get_blink_metrics_for_prompt, fuse_blink_metrics, MEDIAPIPE_AVAILABLE
-    BLINK_DETECTION_AVAILABLE = MEDIAPIPE_AVAILABLE
+    from analysis.spectrogram_analyzer import generate_spectrogram_from_base64, SPECTROGRAM_AVAILABLE
 except ImportError:
-    BLINK_DETECTION_AVAILABLE = False
-    def fuse_blink_metrics(cv_metrics, llm_output):
-        return {'fused_bpm': 0, 'fusion_method': 'unavailable', 'confidence': 'none'}
+    SPECTROGRAM_AVAILABLE = False
+    def generate_spectrogram_from_base64(audio_base64, audio_format='mp3'):
+        from dataclasses import dataclass
+        @dataclass
+        class DummyResult:
+            available: bool = False
+            image_base64: str = None
+            error: str = "Spectrogram dependencies not installed"
+        return DummyResult()
 
 logger = logging.getLogger(__name__)
 
@@ -83,8 +89,7 @@ class BehavioralProfiler:
         self,
         api_key: Optional[str] = None,
         model_config: Optional[ModelSelection] = None,
-        custom_prompts: Optional[CustomPrompts] = None,
-        use_template_prompts: bool = True
+        custom_prompts: Optional[CustomPrompts] = None
     ):
         """
         Initialize the profiler with OpenRouter client.
@@ -93,12 +98,10 @@ class BehavioralProfiler:
             api_key: Optional OpenRouter API key (uses env var if not provided)
             model_config: Optional model selection for each stage
             custom_prompts: Optional custom prompts to override defaults
-            use_template_prompts: If True, use prompts from template manager (default)
         """
         self.client = OpenRouterClient(api_key=api_key)
         self.model_config = model_config or ModelSelection()
         self.custom_prompts = custom_prompts
-        self.use_template_prompts = use_template_prompts
         self.analysis_logger = AnalysisLogger()
 
     def _get_prompt(self, stage: str) -> str:
@@ -107,8 +110,7 @@ class BehavioralProfiler:
 
         Priority:
         1. Custom prompts passed directly (if provided)
-        2. Template manager active prompts (if use_template_prompts=True)
-        3. Default prompts from prompts.py
+        2. Default prompts from prompts.py
 
         Args:
             stage: The analysis stage (essence, multimodal, audio, liwc, synthesis)
@@ -128,11 +130,7 @@ class BehavioralProfiler:
             if prompt_map.get(stage):
                 return prompt_map[stage]
 
-        # Use template manager if enabled
-        if self.use_template_prompts:
-            return get_prompt_for_stage(stage)
-
-        # Fall back to defaults
+        # Use default prompts
         default_map = {
             'essence': SAM_CHRISTENSEN_PROMPT,
             'multimodal': GEMINI_COMPREHENSIVE_PROMPT,
@@ -248,14 +246,22 @@ class BehavioralProfiler:
             except Exception as mug_err:
                 logger.warning(f"Mugshot capture failed: {mug_err}")
             # Run CV-based blink detection (ground truth for LLM blink estimates)
-            blink_validation = {'available': False, 'formatted_text': 'Blink detection not available', 'metrics': {}}
-            if BLINK_DETECTION_AVAILABLE:
-                try:
-                    blink_validation = get_blink_metrics_for_prompt(video_path)
-                    if blink_validation['available']:
-                        logger.info(f"CV blink detection: {blink_validation['metrics'].get('total_blinks', 0)} blinks, {blink_validation['metrics'].get('bpm', 0):.1f} BPM")
-                except Exception as blink_err:
-                    logger.warning(f"Blink detection failed: {blink_err}")
+            blink_validation = {'available': False, 'formatted_text': 'Blink detection failed', 'metrics': {}}
+            try:
+                blink_validation = get_blink_metrics_for_prompt(video_path)
+                if blink_validation['available']:
+                    total_blinks = blink_validation['metrics'].get('total_blinks', 0)
+                    bpm = blink_validation['metrics'].get('bpm', 0)
+                    logger.info(f"CV blink detection: {total_blinks} blinks, {bpm:.1f} BPM")
+                else:
+                    # Face not detected - subject may be turned away or out of frame
+                    logger.warning("⚠️ CV blink detection: No face detected. Subject may be out of frame or turned away.")
+                    self._send_result(results_callback, 'warning',
+                        "⚠️ No face detected for blink analysis - subject may be out of frame.")
+            except Exception as blink_err:
+                logger.error(f"⚠️ CV blink detection error: {blink_err}")
+                self._send_result(results_callback, 'warning',
+                    f"⚠️ Blink detection error: {blink_err}")
 
             self._update_progress(
                 progress_callback,
@@ -310,6 +316,25 @@ class BehavioralProfiler:
                     2
                 )
 
+            # Generate voice stress spectrogram (visual representation of audio)
+            spectrogram_result = {'available': False, 'image_base64': None, 'error': 'Audio not available'}
+            if base64_audio and SPECTROGRAM_AVAILABLE:
+                try:
+                    spectrogram_result_obj = generate_spectrogram_from_base64(base64_audio, audio_format='mp3')
+                    if spectrogram_result_obj.available:
+                        spectrogram_result = {
+                            'available': True,
+                            'image_base64': spectrogram_result_obj.image_base64,
+                            'duration_seconds': spectrogram_result_obj.duration_seconds,
+                            'sample_rate': spectrogram_result_obj.sample_rate
+                        }
+                        logger.info(f"Spectrogram generated: {spectrogram_result_obj.duration_seconds:.1f}s audio")
+                    else:
+                        spectrogram_result['error'] = spectrogram_result_obj.error
+                except Exception as spec_err:
+                    logger.warning(f"Spectrogram generation failed: {spec_err}")
+                    spectrogram_result['error'] = str(spec_err)
+
             # Get model names for display
             essence_model_name = get_model_info(self.model_config.essence_model)
             essence_display = essence_model_name.name if essence_model_name else self.model_config.essence_model
@@ -350,6 +375,7 @@ class BehavioralProfiler:
                 audio_model=self.model_config.audio_model,
                 synthesis_model=self.model_config.synthesis_model,
                 transcript=transcription_result.transcript if transcription_result and transcription_result.success else None,
+                blink_validation=blink_validation,  # Pass CV ground truth to prevent hallucination propagation
                 progress_callback=progress_callback,
                 results_callback=results_callback
             )
@@ -461,6 +487,7 @@ class BehavioralProfiler:
                     'fusion_confidence': blink_fusion.get('confidence', 'none'),
                     'cv_llm_discrepancy': blink_fusion.get('discrepancy_flag', False)
                 },
+                'spectrogram': spectrogram_result,
                 'status': 'completed'
             }
 
@@ -778,7 +805,7 @@ VIDEO METADATA:
     try:
         # Create API client
         from api_client import OpenRouterClient
-        from config_manager import ConfigManager
+        from config.config_manager import ConfigManager
 
         if not api_key:
             config = ConfigManager()

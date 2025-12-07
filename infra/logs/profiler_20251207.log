@@ -1,0 +1,263 @@
+2025-12-07 01:43:07 | INFO     | infra.database       | _init_database       | Database initialized at D:\AI\Profiler\infra\profiler_data.db
+2025-12-07 01:43:07 | INFO     | httpx                | _send_single_request | HTTP Request: HEAD https://huggingface.co/api/telemetry/https%3A/api.gradio.app/gradio-initiated-analytics "HTTP/1.1 200 OK"
+2025-12-07 01:43:07 | INFO     | httpx                | _send_single_request | HTTP Request: GET http://localhost:7861/gradio_api/startup-events "HTTP/1.1 200 OK"
+2025-12-07 01:43:07 | INFO     | httpx                | _send_single_request | HTTP Request: HEAD http://localhost:7861/ "HTTP/1.1 200 OK"
+2025-12-07 01:43:07 | INFO     | httpx                | _send_single_request | HTTP Request: HEAD https://huggingface.co/api/telemetry/https%3A/api.gradio.app/gradio-launched-telemetry "HTTP/1.1 200 OK"
+2025-12-07 01:43:08 | INFO     | httpx                | _send_single_request | HTTP Request: GET https://api.gradio.app/pkg-version "HTTP/1.1 200 OK"
+2025-12-07 01:43:24 | INFO     | infra.cache_manager  | invalidate           | Cleared entire cache (0 entries)
+2025-12-07 01:43:31 | INFO     | analysis             | analysis_start       | [PROF-20251207-014331-213] ANALYSIS START: C:\Users\Greg\AppData\Local\Temp\gradio\dfe1742422bf05b6d126318fc84479c07d63a7ced0a9fd41b07b97cbb575fdb1\Cobie-cropped.mp4
+2025-12-07 01:43:31 | INFO     | profiler             | profile_video        | Video loaded: 158.0s, 1280x720, 72.5MB base64
+2025-12-07 01:43:33 | INFO     | profiler             | profile_video        | Mugshot captured from video
+2025-12-07 01:44:15 | INFO     | analysis.blink_detector | detect_blinks        | Blink detection stats: avg_EAR=0.610, min_EAR=0.108, face_detected=99.3%, threshold=0.25
+2025-12-07 01:44:15 | INFO     | profiler             | profile_video        | CV blink detection: 26 blinks, 9.9 BPM
+2025-12-07 01:44:15 | INFO     | media.transcription  | transcribe_audio     | Starting transcription with model: google/gemini-3-pro-preview
+2025-12-07 01:44:15 | INFO     | api_client           | analyze_audio        | Audio analysis with model: google/gemini-3-pro-preview
+2025-12-07 01:44:21 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 01:44:45 | INFO     | media.transcription  | transcribe_audio     | Transcription complete: 468 words
+2025-12-07 01:44:45 | INFO     | core.modular_executor | run_stage_zero       | Starting Stage 0 (Subject ID, Baseline, Deepfake) with 3 sub-analyses
+2025-12-07 01:44:45 | INFO     | api_client           | analyze_with_multimodal | Multimodal analysis with model: google/gemini-3-pro-preview
+2025-12-07 01:44:45 | INFO     | api_client           | analyze_with_multimodal | Multimodal analysis with model: google/gemini-3-pro-preview
+2025-12-07 01:44:45 | INFO     | api_client           | analyze_with_multimodal | Multimodal analysis with model: google/gemini-3-pro-preview
+2025-12-07 01:45:42 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 01:45:45 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 01:45:48 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 503 Service Temporarily Unavailable"
+2025-12-07 01:45:48 | INFO     | openai._base_client  | _sleep_for_retry     | Retrying request to /chat/completions in 0.496830 seconds
+2025-12-07 01:46:02 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'deepfake_detection' completed in 76.66s
+2025-12-07 01:46:06 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'subject_identification' completed in 81.09s
+2025-12-07 01:46:20 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 01:46:39 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'baseline_establishment' completed in 113.91s
+2025-12-07 01:46:39 | INFO     | core.modular_executor | _run_parallel_sub_analyses | Stage 'stage_zero' completed in 113.94s with 3/3 successful
+2025-12-07 01:46:39 | INFO     | core.modular_executor | run_full_pipeline    | Baseline established (2512 chars) - will inform subsequent analyses
+2025-12-07 01:46:39 | INFO     | core.modular_executor | run_visual_analysis  | Starting visual analysis with 4 sub-analyses (native video)
+2025-12-07 01:46:39 | INFO     | core.modular_executor | run_visual_analysis  | Baseline context injected into kinesic event log prompt
+2025-12-07 01:46:39 | INFO     | core.modular_executor | run_visual_analysis  | CV blink data injected into blink_rate prompt for LLM interpretation
+2025-12-07 01:46:39 | INFO     | api_client           | analyze_with_multimodal | Multimodal analysis with model: google/gemini-3-pro-preview
+2025-12-07 01:46:39 | INFO     | api_client           | analyze_with_multimodal | Multimodal analysis with model: google/gemini-3-pro-preview
+2025-12-07 01:46:39 | INFO     | api_client           | analyze_with_multimodal | Multimodal analysis with model: google/gemini-3-pro-preview
+2025-12-07 01:46:39 | INFO     | api_client           | analyze_with_multimodal | Multimodal analysis with model: google/gemini-3-pro-preview
+2025-12-07 01:47:43 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 01:47:44 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 01:47:46 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 01:48:01 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 503 Service Temporarily Unavailable"
+2025-12-07 01:48:01 | INFO     | openai._base_client  | _sleep_for_retry     | Retrying request to /chat/completions in 0.465405 seconds
+2025-12-07 01:48:13 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'archetype' completed in 94.02s
+2025-12-07 01:48:14 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'blink_rate' completed in 94.90s
+2025-12-07 01:48:32 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'congruence' completed in 113.35s
+2025-12-07 01:48:35 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 01:49:03 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'kinesic_log' completed in 143.81s
+2025-12-07 01:49:03 | INFO     | core.modular_executor | _run_parallel_sub_analyses | Stage 'visual' completed in 143.81s with 4/4 successful
+2025-12-07 01:49:03 | INFO     | core.modular_executor | run_full_pipeline    | Extracted visual context (2030 chars) for audio cross-pollination
+2025-12-07 01:49:03 | INFO     | core.modular_executor | run_multimodal_analysis | Starting multimodal analysis with 4 sub-analyses (native video)
+2025-12-07 01:49:03 | INFO     | api_client           | analyze_with_multimodal | Multimodal analysis with model: google/gemini-3-pro-preview
+2025-12-07 01:49:03 | INFO     | api_client           | analyze_with_multimodal | Multimodal analysis with model: google/gemini-3-pro-preview
+2025-12-07 01:49:03 | INFO     | api_client           | analyze_with_multimodal | Multimodal analysis with model: google/gemini-3-pro-preview
+2025-12-07 01:49:03 | INFO     | api_client           | analyze_with_multimodal | Multimodal analysis with model: google/gemini-3-pro-preview
+2025-12-07 01:50:20 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 01:50:23 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 01:50:33 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 503 Service Temporarily Unavailable"
+2025-12-07 01:50:33 | INFO     | openai._base_client  | _sleep_for_retry     | Retrying request to /chat/completions in 0.499354 seconds
+2025-12-07 01:50:34 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 503 Service Temporarily Unavailable"
+2025-12-07 01:50:34 | INFO     | openai._base_client  | _sleep_for_retry     | Retrying request to /chat/completions in 0.395224 seconds
+2025-12-07 01:50:54 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'environment' completed in 111.40s
+2025-12-07 01:51:20 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 01:51:24 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'camera_awareness' completed in 141.16s
+2025-12-07 01:51:31 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 503 Service Temporarily Unavailable"
+2025-12-07 01:51:31 | INFO     | openai._base_client  | _sleep_for_retry     | Retrying request to /chat/completions in 0.855627 seconds
+2025-12-07 01:52:13 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'cross_modal_sync' completed in 190.71s
+2025-12-07 01:52:17 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 503 Service Temporarily Unavailable"
+2025-12-07 01:52:17 | INFO     | openai._base_client  | _sleep_for_retry     | Retrying request to /chat/completions in 1.831972 seconds
+2025-12-07 01:53:06 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 503 Service Temporarily Unavailable"
+2025-12-07 01:53:06 | INFO     | openai._base_client  | _sleep_for_retry     | Retrying request to /chat/completions in 3.998941 seconds
+2025-12-07 01:53:43 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 01:54:28 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'five_cs' completed in 324.61s
+2025-12-07 01:54:28 | INFO     | core.modular_executor | _run_parallel_sub_analyses | Stage 'multimodal' completed in 325.14s with 4/4 successful
+2025-12-07 01:54:28 | INFO     | core.modular_executor | run_audio_analysis   | Starting audio analysis with 5 sub-analyses
+2025-12-07 01:54:28 | INFO     | core.modular_executor | run_audio_analysis   | Injected transcript (2695 chars) into LIWC prompt
+2025-12-07 01:54:28 | INFO     | core.modular_executor | run_audio_analysis   | Injected visual context into audio prompts for cross-modal analysis
+2025-12-07 01:54:28 | INFO     | api_client           | analyze_audio        | Audio analysis with model: google/gemini-3-pro-preview
+2025-12-07 01:54:28 | INFO     | api_client           | analyze_audio        | Audio analysis with model: google/gemini-3-pro-preview
+2025-12-07 01:54:28 | INFO     | api_client           | analyze_audio        | Audio analysis with model: google/gemini-3-pro-preview
+2025-12-07 01:54:28 | INFO     | api_client           | analyze_audio        | Audio analysis with model: google/gemini-3-pro-preview
+2025-12-07 01:54:32 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 01:54:32 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 01:54:33 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 01:54:33 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 01:55:04 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'detail_mountain_valley' completed in 36.11s
+2025-12-07 01:55:04 | INFO     | api_client           | analyze_audio        | Audio analysis with model: google/gemini-3-pro-preview
+2025-12-07 01:55:06 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'linguistic_harvesting' completed in 37.95s
+2025-12-07 01:55:07 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'minimizing_language' completed in 38.85s
+2025-12-07 01:55:08 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 01:55:12 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'audio_linguistic' completed in 44.02s
+2025-12-07 01:55:39 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'liwc' completed in 35.15s
+2025-12-07 01:55:39 | INFO     | core.modular_executor | _run_parallel_sub_analyses | Stage 'audio' completed in 71.26s with 5/5 successful
+2025-12-07 01:55:39 | INFO     | core.modular_executor | run_full_pipeline    | Signal Collapsing: 32 events collapsed
+2025-12-07 01:55:39 | INFO     | core.modular_executor | run_full_pipeline    | CV blink data injected into synthesis (BPM=9.9)
+2025-12-07 01:55:39 | INFO     | core.modular_executor | run_synthesis        | Starting synthesis with 9 sub-analyses
+2025-12-07 01:55:39 | INFO     | api_client           | synthesize_text      | Text synthesis with model: google/gemini-3-pro-preview
+2025-12-07 01:55:39 | INFO     | api_client           | synthesize_text      | Text synthesis with model: google/gemini-3-pro-preview
+2025-12-07 01:55:39 | INFO     | api_client           | synthesize_text      | Text synthesis with model: google/gemini-3-pro-preview
+2025-12-07 01:55:39 | INFO     | api_client           | synthesize_text      | Text synthesis with model: google/gemini-3-pro-preview
+2025-12-07 01:55:42 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 01:55:43 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 01:55:43 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 01:55:43 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 01:56:05 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'threat' completed in 26.22s
+2025-12-07 01:56:05 | INFO     | api_client           | synthesize_text      | Text synthesis with model: google/gemini-3-pro-preview
+2025-12-07 01:56:09 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 01:56:12 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'personality' completed in 32.58s
+2025-12-07 01:56:12 | INFO     | api_client           | synthesize_text      | Text synthesis with model: google/gemini-3-pro-preview
+2025-12-07 01:56:14 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'contradictions' completed in 35.15s
+2025-12-07 01:56:14 | INFO     | api_client           | synthesize_text      | Text synthesis with model: google/gemini-3-pro-preview
+2025-12-07 01:56:14 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'differential' completed in 35.48s
+2025-12-07 01:56:14 | INFO     | api_client           | synthesize_text      | Text synthesis with model: google/gemini-3-pro-preview
+2025-12-07 01:56:15 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 01:56:18 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 01:56:18 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 01:56:39 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'red_team' completed in 33.90s
+2025-12-07 01:56:44 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'irony_meme_filter' completed in 32.71s
+2025-12-07 01:56:53 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'fate_model' completed in 38.94s
+2025-12-07 01:56:58 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'nci_deception_summary' completed in 43.38s
+2025-12-07 01:56:58 | INFO     | core.modular_executor | _run_parallel_sub_analyses | Stage 'synthesis_parallel' completed in 78.87s with 8/8 successful
+2025-12-07 01:56:58 | INFO     | core.modular_executor | run_synthesis        | Running final integration
+2025-12-07 01:56:58 | INFO     | api_client           | synthesize_text      | Text synthesis with model: google/gemini-3-pro-preview
+2025-12-07 01:57:03 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 01:57:44 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'final_integration' completed in 46.68s
+2025-12-07 01:57:44 | WARNING  | analysis.blink_detector | fuse_blink_metrics   | Blink rate discrepancy: CV=9.9 BPM, LLM claimed=24.0 BPM (ratio=2.4x). Using CV as ground truth.
+2025-12-07 01:57:44 | INFO     | profiler             | profile_video        | Blink fusion: CV=9.9, Fused=9.9 (cv_ground_truth)
+2025-12-07 01:57:44 | INFO     | profiler             | profile_video        | Modular pipeline completed in 779.69s
+2025-12-07 01:57:44 | INFO     | profiler             | profile_video        | Confidence score: 0.762
+2025-12-07 01:57:44 | INFO     | analysis             | analysis_complete    | [PROF-20251207-014331-213] ANALYSIS COMPLETE: Total time 853.75s
+2025-12-07 01:57:45 | INFO     | infra.database       | create_subject       | Created subject: @Cobert (ID: 1)
+2025-12-07 01:57:45 | INFO     | infra.database       | save_profile         | Saved profile: PROF-20251207-014331-213 (Subject: @Cobert, Report #1)
+2025-12-07 01:57:45 | INFO     | output.visualizations | extract_big_five_scores | Big Five extraction: found 5/5 traits: ['Openness', 'Conscientiousness', 'Extraversion', 'Agreeableness', 'Neuroticism']
+2025-12-07 01:57:45 | INFO     | output.visualizations | extract_dark_triad_scores | Dark Triad extraction: found 3/3 traits: ['Narcissism', 'Machiavellianism', 'Psychopathy']
+2025-12-07 01:57:45 | INFO     | output.visualizations | extract_threat_scores | Threat extraction: found 5/5 categories: ['Volatility', 'Manipulation', 'Compliance', 'Stress Resilience', 'Ethical Boundaries']
+2025-12-07 01:57:45 | INFO     | output.visualizations | extract_mbti_profile | MBTI extraction: found type=ENTJ
+2025-12-07 02:07:11 | ERROR    | asyncio              | default_exception_handler | Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Python312\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Python312\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+2025-12-07 02:07:20 | INFO     | analysis             | analysis_start       | [PROF-20251207-020720-313] ANALYSIS START: C:\Users\Greg\AppData\Local\Temp\gradio\dfe1742422bf05b6d126318fc84479c07d63a7ced0a9fd41b07b97cbb575fdb1\Cobie-cropped.mp4
+2025-12-07 02:07:20 | INFO     | profiler             | profile_video        | Video loaded: 158.0s, 1280x720, 72.5MB base64
+2025-12-07 02:07:22 | INFO     | profiler             | profile_video        | Mugshot captured from video
+2025-12-07 02:08:02 | INFO     | analysis.blink_detector | detect_blinks        | Blink detection stats: avg_EAR=0.610, min_EAR=0.108, face_detected=99.3%, threshold=0.25
+2025-12-07 02:08:02 | INFO     | profiler             | profile_video        | CV blink detection: 26 blinks, 9.9 BPM
+2025-12-07 02:08:02 | INFO     | media.transcription  | transcribe_audio     | Starting transcription with model: google/gemini-3-pro-preview
+2025-12-07 02:08:02 | INFO     | api_client           | analyze_audio        | Audio analysis with model: google/gemini-3-pro-preview
+2025-12-07 02:08:06 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 02:08:26 | INFO     | media.transcription  | transcribe_audio     | Transcription complete: 468 words
+2025-12-07 02:08:26 | INFO     | core.modular_executor | run_stage_zero       | Starting Stage 0 (Subject ID, Baseline, Deepfake) with 3 sub-analyses
+2025-12-07 02:08:26 | INFO     | api_client           | analyze_with_multimodal | Multimodal analysis with model: google/gemini-3-pro-preview
+2025-12-07 02:08:26 | INFO     | api_client           | analyze_with_multimodal | Multimodal analysis with model: google/gemini-3-pro-preview
+2025-12-07 02:08:27 | INFO     | api_client           | analyze_with_multimodal | Multimodal analysis with model: google/gemini-3-pro-preview
+2025-12-07 02:09:28 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 02:09:30 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 02:09:35 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 02:09:54 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'subject_identification' completed in 88.00s
+2025-12-07 02:09:56 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'deepfake_detection' completed in 89.73s
+2025-12-07 02:09:58 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'baseline_establishment' completed in 92.07s
+2025-12-07 02:09:58 | INFO     | core.modular_executor | _run_parallel_sub_analyses | Stage 'stage_zero' completed in 92.10s with 3/3 successful
+2025-12-07 02:09:58 | INFO     | core.modular_executor | run_full_pipeline    | Baseline established (2898 chars) - will inform subsequent analyses
+2025-12-07 02:09:58 | INFO     | core.modular_executor | run_visual_analysis  | Starting visual analysis with 4 sub-analyses (native video)
+2025-12-07 02:09:58 | INFO     | core.modular_executor | run_visual_analysis  | Baseline context injected into kinesic event log prompt
+2025-12-07 02:09:58 | INFO     | core.modular_executor | run_visual_analysis  | CV blink data injected into blink_rate prompt for LLM interpretation
+2025-12-07 02:09:58 | INFO     | api_client           | analyze_with_multimodal | Multimodal analysis with model: google/gemini-3-pro-preview
+2025-12-07 02:09:58 | INFO     | api_client           | analyze_with_multimodal | Multimodal analysis with model: google/gemini-3-pro-preview
+2025-12-07 02:09:58 | INFO     | api_client           | analyze_with_multimodal | Multimodal analysis with model: google/gemini-3-pro-preview
+2025-12-07 02:09:58 | INFO     | api_client           | analyze_with_multimodal | Multimodal analysis with model: google/gemini-3-pro-preview
+2025-12-07 02:11:02 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 02:11:12 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 02:11:15 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 503 Service Temporarily Unavailable"
+2025-12-07 02:11:15 | INFO     | openai._base_client  | _sleep_for_retry     | Retrying request to /chat/completions in 0.386986 seconds
+2025-12-07 02:11:18 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 02:11:49 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 02:11:49 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'congruence' completed in 110.79s
+2025-12-07 02:11:58 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'kinesic_log' completed in 120.33s
+2025-12-07 02:12:04 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'blink_rate' completed in 126.29s
+2025-12-07 02:12:27 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'archetype' completed in 148.52s
+2025-12-07 02:12:27 | INFO     | core.modular_executor | _run_parallel_sub_analyses | Stage 'visual' completed in 148.53s with 4/4 successful
+2025-12-07 02:12:27 | INFO     | core.modular_executor | run_full_pipeline    | Extracted visual context (2030 chars) for audio cross-pollination
+2025-12-07 02:12:27 | INFO     | core.modular_executor | run_multimodal_analysis | Starting multimodal analysis with 4 sub-analyses (native video)
+2025-12-07 02:12:27 | INFO     | api_client           | analyze_with_multimodal | Multimodal analysis with model: google/gemini-3-pro-preview
+2025-12-07 02:12:27 | INFO     | api_client           | analyze_with_multimodal | Multimodal analysis with model: google/gemini-3-pro-preview
+2025-12-07 02:12:27 | INFO     | api_client           | analyze_with_multimodal | Multimodal analysis with model: google/gemini-3-pro-preview
+2025-12-07 02:12:27 | INFO     | api_client           | analyze_with_multimodal | Multimodal analysis with model: google/gemini-3-pro-preview
+2025-12-07 02:13:28 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 02:13:30 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 02:13:38 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 02:13:44 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 02:13:55 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'environment' completed in 88.67s
+2025-12-07 02:14:09 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'five_cs' completed in 101.65s
+2025-12-07 02:14:13 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'camera_awareness' completed in 106.00s
+2025-12-07 02:14:21 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'cross_modal_sync' completed in 114.55s
+2025-12-07 02:14:21 | INFO     | core.modular_executor | _run_parallel_sub_analyses | Stage 'multimodal' completed in 114.55s with 4/4 successful
+2025-12-07 02:14:21 | INFO     | core.modular_executor | run_audio_analysis   | Starting audio analysis with 5 sub-analyses
+2025-12-07 02:14:21 | INFO     | core.modular_executor | run_audio_analysis   | Injected transcript (2681 chars) into LIWC prompt
+2025-12-07 02:14:21 | INFO     | core.modular_executor | run_audio_analysis   | Injected visual context into audio prompts for cross-modal analysis
+2025-12-07 02:14:21 | INFO     | api_client           | analyze_audio        | Audio analysis with model: google/gemini-3-pro-preview
+2025-12-07 02:14:21 | INFO     | api_client           | analyze_audio        | Audio analysis with model: google/gemini-3-pro-preview
+2025-12-07 02:14:21 | INFO     | api_client           | analyze_audio        | Audio analysis with model: google/gemini-3-pro-preview
+2025-12-07 02:14:21 | INFO     | api_client           | analyze_audio        | Audio analysis with model: google/gemini-3-pro-preview
+2025-12-07 02:14:25 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 02:14:26 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 02:14:26 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 02:14:26 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 02:14:53 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'detail_mountain_valley' completed in 31.86s
+2025-12-07 02:14:53 | INFO     | api_client           | analyze_audio        | Audio analysis with model: google/gemini-3-pro-preview
+2025-12-07 02:14:57 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 02:15:01 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'linguistic_harvesting' completed in 39.73s
+2025-12-07 02:15:05 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'audio_linguistic' completed in 43.85s
+2025-12-07 02:15:06 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'minimizing_language' completed in 44.69s
+2025-12-07 02:15:36 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'liwc' completed in 43.14s
+2025-12-07 02:15:36 | INFO     | core.modular_executor | _run_parallel_sub_analyses | Stage 'audio' completed in 75.01s with 5/5 successful
+2025-12-07 02:15:36 | INFO     | core.modular_executor | run_full_pipeline    | Signal Collapsing: 42 events collapsed
+2025-12-07 02:15:36 | INFO     | core.modular_executor | run_full_pipeline    | CV blink data injected into synthesis (BPM=9.9)
+2025-12-07 02:15:36 | INFO     | core.modular_executor | run_synthesis        | Starting synthesis with 9 sub-analyses
+2025-12-07 02:15:36 | INFO     | api_client           | synthesize_text      | Text synthesis with model: google/gemini-3-pro-preview
+2025-12-07 02:15:36 | INFO     | api_client           | synthesize_text      | Text synthesis with model: google/gemini-3-pro-preview
+2025-12-07 02:15:36 | INFO     | api_client           | synthesize_text      | Text synthesis with model: google/gemini-3-pro-preview
+2025-12-07 02:15:36 | INFO     | api_client           | synthesize_text      | Text synthesis with model: google/gemini-3-pro-preview
+2025-12-07 02:15:40 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 02:15:40 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 02:15:40 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 02:15:40 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 02:16:04 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'threat' completed in 28.16s
+2025-12-07 02:16:04 | INFO     | api_client           | synthesize_text      | Text synthesis with model: google/gemini-3-pro-preview
+2025-12-07 02:16:08 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 02:16:13 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'differential' completed in 36.86s
+2025-12-07 02:16:13 | INFO     | api_client           | synthesize_text      | Text synthesis with model: google/gemini-3-pro-preview
+2025-12-07 02:16:15 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'contradictions' completed in 38.68s
+2025-12-07 02:16:15 | INFO     | api_client           | synthesize_text      | Text synthesis with model: google/gemini-3-pro-preview
+2025-12-07 02:16:17 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 02:16:19 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'personality' completed in 42.31s
+2025-12-07 02:16:19 | INFO     | api_client           | synthesize_text      | Text synthesis with model: google/gemini-3-pro-preview
+2025-12-07 02:16:19 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 02:16:22 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 02:16:42 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'red_team' completed in 37.85s
+2025-12-07 02:16:48 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'fate_model' completed in 33.53s
+2025-12-07 02:16:49 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'irony_meme_filter' completed in 35.86s
+2025-12-07 02:17:10 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'nci_deception_summary' completed in 51.90s
+2025-12-07 02:17:10 | INFO     | core.modular_executor | _run_parallel_sub_analyses | Stage 'synthesis_parallel' completed in 94.21s with 8/8 successful
+2025-12-07 02:17:10 | INFO     | core.modular_executor | run_synthesis        | Running final integration
+2025-12-07 02:17:10 | INFO     | api_client           | synthesize_text      | Text synthesis with model: google/gemini-3-pro-preview
+2025-12-07 02:17:15 | INFO     | httpx                | _send_single_request | HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-12-07 02:17:59 | INFO     | core.modular_executor | _run_sub_analysis    | Sub-analysis 'final_integration' completed in 48.74s
+2025-12-07 02:17:59 | WARNING  | analysis.blink_detector | fuse_blink_metrics   | LLM blink hallucination detected: claimed 90.0 BPM baseline
+2025-12-07 02:17:59 | WARNING  | analysis.blink_detector | fuse_blink_metrics   | Blink rate discrepancy: CV=9.9 BPM, LLM claimed=90.0 BPM (ratio=9.0x). Using CV as ground truth.
+2025-12-07 02:17:59 | INFO     | profiler             | profile_video        | Blink fusion: CV=9.9, Fused=9.9 (cv_ground_truth)
+2025-12-07 02:17:59 | INFO     | profiler             | profile_video        | Modular pipeline completed in 573.14s
+2025-12-07 02:17:59 | INFO     | profiler             | profile_video        | Confidence score: 0.735
+2025-12-07 02:17:59 | INFO     | analysis             | analysis_complete    | [PROF-20251207-020720-313] ANALYSIS COMPLETE: Total time 639.39s
+2025-12-07 02:17:59 | INFO     | infra.cache_manager  | put                  | Cached result: 05c56bb2345ea3ab_c15...
+2025-12-07 02:17:59 | INFO     | profiler             | profile_video        | Cached analysis result for C:\Users\Greg\AppData\Local\Temp\gradio\dfe1742422bf05b6d126318fc84479c07d63a7ced0a9fd41b07b97cbb575fdb1\Cobie-cropped.mp4
+2025-12-07 02:18:00 | INFO     | infra.database       | save_profile         | Saved profile: PROF-20251207-020720-313 (Subject: @Cobert, Report #2)
+2025-12-07 02:18:00 | INFO     | output.visualizations | extract_big_five_scores | Big Five extraction: found 5/5 traits: ['Openness', 'Conscientiousness', 'Extraversion', 'Agreeableness', 'Neuroticism']
+2025-12-07 02:18:00 | INFO     | output.visualizations | extract_dark_triad_scores | Dark Triad extraction: found 3/3 traits: ['Narcissism', 'Machiavellianism', 'Psychopathy']
+2025-12-07 02:18:00 | INFO     | output.visualizations | extract_threat_scores | Threat extraction: found 5/5 categories: ['Volatility', 'Manipulation', 'Compliance', 'Stress Resilience', 'Ethical Boundaries']
+2025-12-07 02:18:00 | INFO     | output.visualizations | extract_mbti_profile | MBTI extraction: found type=INTJ
+2025-12-07 02:18:00 | INFO     | output.visualizations | extract_bte_score    | BTE fallback: found moderate indicators
+2025-12-07 02:18:00 | INFO     | output.visualizations | extract_bte_score    | BTE fallback: found moderate indicators

@@ -132,12 +132,19 @@ def calculate_data_quality_score(
         score -= 0.05
         warnings.append("Short video duration may affect analysis completeness")
 
-    frames_extracted = video_metadata.get('frames_extracted', 0)
-    if frames_extracted < 3:
-        score -= 0.2
-        warnings.append("Few frames extracted - limited visual data")
-    elif frames_extracted < 5:
-        score -= 0.05
+    # Check for native video mode (preferred) or fallback frame extraction
+    native_video_used = video_metadata.get('native_video_processing', False) or video_metadata.get('native_video', False)
+    if native_video_used:
+        # Native video provides full temporal analysis - bonus
+        score += 0.1
+    else:
+        # Fallback: check frame extraction
+        frames_extracted = video_metadata.get('frames_extracted', 0)
+        if frames_extracted < 3:
+            score -= 0.2
+            warnings.append("Few frames extracted - limited visual data")
+        elif frames_extracted < 5:
+            score -= 0.05
 
     # Resolution check
     resolution = video_metadata.get('resolution', (0, 0))
@@ -257,7 +264,12 @@ def calculate_analysis_confidence(
 
     # Audio Analysis
     audio_text = analyses.get('audio_voice_analysis', '')
-    if audio_text and not audio_text.startswith('ERROR') and 'unavailable' not in audio_text.lower():
+    # Only fail if text is exactly the fallback message, not if it contains the word somewhere
+    audio_available = (audio_text and
+                       not audio_text.startswith('ERROR') and
+                       audio_text.lower() != 'analysis unavailable' and
+                       len(audio_text) > 100)  # Reasonable content check
+    if audio_available:
         audio_scores = extract_confidence_from_text(audio_text)
         if audio_scores:
             avg_score = sum(s[1] for s in audio_scores) / len(audio_scores)
@@ -282,18 +294,31 @@ def calculate_analysis_confidence(
 
     # LIWC Analysis
     liwc_text = analyses.get('liwc_linguistic_analysis', '')
-    if liwc_text and not liwc_text.startswith('ERROR') and 'unavailable' not in liwc_text.lower():
+    liwc_available = (liwc_text and
+                      not liwc_text.startswith('ERROR') and
+                      liwc_text.lower() != 'liwc analysis unavailable' and
+                      len(liwc_text) > 100)
+    if liwc_available:
         liwc_scores = extract_confidence_from_text(liwc_text)
-        if liwc_scores:
+        # Base score on content length (successful analysis = more data)
+        content_score = min(0.75, 0.35 + len(liwc_text) / 5000)
+
+        if liwc_scores and len(liwc_scores) >= 3:
+            # Multiple explicit indicators - trust them
             avg_score = sum(s[1] for s in liwc_scores) / len(liwc_scores)
+        elif liwc_scores:
+            # Few indicators - blend with content score (don't let one "low confidence" tank it)
+            extracted_avg = sum(s[1] for s in liwc_scores) / len(liwc_scores)
+            avg_score = (content_score * 0.6) + (extracted_avg * 0.4)
         else:
-            avg_score = min(0.65, 0.25 + len(liwc_text) / 6000)
+            # No explicit indicators - use content-based score
+            avg_score = content_score
 
         scores.append(ConfidenceScore(
             category="Linguistic Analysis",
             score=avg_score,
             level=get_confidence_level(avg_score),
-            reasoning=f"Based on {len(liwc_scores)} extracted confidence indicators"
+            reasoning=f"Based on {len(liwc_scores)} indicators + content depth ({len(liwc_text)} chars)"
         ))
         analysis_scores.append(avg_score)
     else:

@@ -309,24 +309,3 @@ def get_spectrogram_for_prompt(audio_path: str) -> Dict:
             'prompt': None,
             'error': result.error
         }
-
-
-# Test
-if __name__ == "__main__":
-    import sys
-
-    print(f"Spectrogram available: {SPECTROGRAM_AVAILABLE}")
-
-    if len(sys.argv) > 1:
-        audio_path = sys.argv[1]
-        print(f"Generating spectrogram for: {audio_path}")
-        result = generate_spectrogram(audio_path, output_path="test_spectrogram.png")
-
-        if result.available:
-            print(f"Success! Duration: {result.duration_seconds:.1f}s")
-            print(f"Image base64 length: {len(result.image_base64)} chars")
-            print("Saved to test_spectrogram.png")
-        else:
-            print(f"Failed: {result.error}")
-    else:
-        print("Usage: python spectrogram_analyzer.py <audio_path>")

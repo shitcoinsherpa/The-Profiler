@@ -19,6 +19,18 @@ If the Edit tool fails due to "file modified":
 3. **DELETE the script immediately after use** - do not leave helper scripts in the repo
 4. Verify the fix worked before proceeding
 
+## Code Cleanliness Rules
+
+**No scratch pad / test code in production files.**
+
+Do NOT leave `if __name__ == "__main__":` blocks with test code in module files. These lead to bloated, sloppy code.
+
+- If a module needs a CLI interface, create it properly with argparse
+- If code needs testing, put tests in a `/tests` folder with proper test files
+- Any test/debug code added during development MUST be removed before considering the task complete
+
+**Exception:** A minimal CLI entry point is acceptable for standalone utility scripts (e.g., `python blink_detector.py video.mp4`) but should be clean and purposeful, not scratch/debug code.
+
 ## Todo List Rules
 
 When cleaning up code or making fixes:

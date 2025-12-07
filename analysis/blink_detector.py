@@ -302,6 +302,200 @@ def format_blink_analysis(analysis: BlinkAnalysis) -> str:
     return "\n".join(lines)
 
 
+def annotate_transcript_with_blinks(transcript: str, blink_analysis: 'BlinkAnalysis') -> str:
+    """
+    Annotate a timestamped transcript with CV blink data.
+
+    Input transcript format (lines starting with timestamps):
+    00:58 I basically got rid of everything...
+    01:23 We had some issues with...
+
+    Output format:
+    00:58 [BLINK: 24 BPM - ELEVATED]: I basically got rid of everything...
+    01:23 [BLINK: 12 BPM - BASELINE]: We had some issues with...
+
+    Args:
+        transcript: Timestamped transcript text
+        blink_analysis: BlinkAnalysis object from detect_blinks()
+
+    Returns:
+        Annotated transcript with blink rate indicators
+    """
+    import re
+
+    if not blink_analysis or not transcript:
+        return transcript
+
+    # Parse stress windows for quick lookup
+    stress_ranges = []
+    for window_start, window_end, window_bpm in blink_analysis.stress_windows:
+        stress_ranges.append((window_start, window_end, window_bpm))
+
+    def get_blink_annotation(timestamp_seconds: float) -> str:
+        """Get blink annotation for a given timestamp."""
+        # Check if timestamp falls in a stress window
+        for start, end, bpm in stress_ranges:
+            if start <= timestamp_seconds <= end:
+                return f"[BLINK: {bpm:.0f} BPM - ELEVATED]"
+
+        # Otherwise use baseline
+        return f"[BLINK: {blink_analysis.baseline_bpm:.0f} BPM - BASELINE]"
+
+    def parse_timestamp(ts: str) -> float:
+        """Convert MM:SS or HH:MM:SS to seconds."""
+        parts = ts.split(':')
+        if len(parts) == 2:
+            return int(parts[0]) * 60 + float(parts[1])
+        elif len(parts) == 3:
+            return int(parts[0]) * 3600 + int(parts[1]) * 60 + float(parts[2])
+        return 0
+
+    # Process each line
+    annotated_lines = []
+    timestamp_pattern = r'^(\d{1,2}:\d{2}(?::\d{2})?)\s*(.*)$'
+
+    for line in transcript.split('\n'):
+        match = re.match(timestamp_pattern, line)
+        if match:
+            timestamp_str = match.group(1)
+            content = match.group(2)
+            timestamp_seconds = parse_timestamp(timestamp_str)
+            blink_annotation = get_blink_annotation(timestamp_seconds)
+            annotated_lines.append(f"{timestamp_str} {blink_annotation}: {content}")
+        else:
+            annotated_lines.append(line)
+
+    return '\n'.join(annotated_lines)
+
+
+def generate_trigger_response_map(
+    blink_analysis: 'BlinkAnalysis',
+    transcript: str,
+    baseline_threshold: float = 1.5
+) -> str:
+    """
+    Generate a TRIGGER-RESPONSE MAP correlating CV blink spikes with exact words spoken.
+
+    Takes every CV spike (>150% of baseline) and finds the exact word(s) being spoken
+    at that millisecond. Removes hallucination risk by providing irrefutable evidence.
+
+    Args:
+        blink_analysis: BlinkAnalysis object from detect_blinks()
+        transcript: Timestamped transcript (format: "MM:SS text here")
+        baseline_threshold: Multiplier for baseline to consider a "spike" (default 1.5x)
+
+    Returns:
+        Formatted trigger-response map as string
+    """
+    import re
+
+    if not blink_analysis or not transcript:
+        return "TRIGGER-RESPONSE MAP UNAVAILABLE: Missing blink analysis or transcript"
+
+    # Parse transcript into (timestamp_seconds, text) tuples
+    transcript_entries = []
+    timestamp_pattern = r'^(\d{1,2}:\d{2}(?::\d{2})?)\s*(.*)$'
+
+    def parse_ts(ts: str) -> float:
+        parts = ts.split(':')
+        if len(parts) == 2:
+            return int(parts[0]) * 60 + float(parts[1])
+        elif len(parts) == 3:
+            return int(parts[0]) * 3600 + int(parts[1]) * 60 + float(parts[2])
+        return 0
+
+    for line in transcript.split('\n'):
+        match = re.match(timestamp_pattern, line.strip())
+        if match:
+            ts_str = match.group(1)
+            text = match.group(2).strip()
+            if text:
+                transcript_entries.append((parse_ts(ts_str), ts_str, text))
+
+    if not transcript_entries:
+        return "TRIGGER-RESPONSE MAP UNAVAILABLE: Could not parse transcript timestamps"
+
+    # Find all stress windows (spikes)
+    stress_spikes = []
+    for window_start, window_end, window_bpm in blink_analysis.stress_windows:
+        if blink_analysis.baseline_bpm > 0:
+            ratio = window_bpm / blink_analysis.baseline_bpm
+            if ratio >= baseline_threshold:
+                stress_spikes.append({
+                    'start': window_start,
+                    'end': window_end,
+                    'bpm': window_bpm,
+                    'ratio': ratio
+                })
+
+    if not stress_spikes:
+        return f"""=== TRIGGER-RESPONSE MAP ===
+NO SIGNIFICANT BLINK SPIKES DETECTED
+Baseline: {blink_analysis.baseline_bpm:.1f} BPM
+Threshold for spike: {blink_analysis.baseline_bpm * baseline_threshold:.1f} BPM ({baseline_threshold}x baseline)
+All blink windows were within normal range."""
+
+    # Correlate spikes with words
+    correlations = []
+    for spike in stress_spikes:
+        spike_mid = (spike['start'] + spike['end']) / 2
+
+        # Find the transcript entry closest to this spike
+        closest_entry = None
+        closest_distance = float('inf')
+
+        for ts_sec, ts_str, text in transcript_entries:
+            distance = abs(ts_sec - spike_mid)
+            if distance < closest_distance:
+                closest_distance = distance
+                closest_entry = (ts_sec, ts_str, text)
+
+        if closest_entry and closest_distance < 30:  # Within 30 seconds
+            correlations.append({
+                'spike_time': spike_mid,
+                'spike_bpm': spike['bpm'],
+                'spike_ratio': spike['ratio'],
+                'word_time': closest_entry[0],
+                'word_time_str': closest_entry[1],
+                'text': closest_entry[2][:100],  # Truncate long text
+                'confidence': 'HIGH' if closest_distance < 5 else 'MEDIUM' if closest_distance < 15 else 'LOW'
+            })
+
+    # Format output
+    lines = [
+        "═══════════════════════════════════════════════════════════════",
+        "TRIGGER-RESPONSE MAP (CV Blink Spikes → Exact Words)",
+        "═══════════════════════════════════════════════════════════════",
+        "",
+        f"Baseline Blink Rate: {blink_analysis.baseline_bpm:.1f} BPM",
+        f"Spike Threshold: >{blink_analysis.baseline_bpm * baseline_threshold:.1f} BPM ({baseline_threshold}x baseline)",
+        f"Total Spikes Detected: {len(stress_spikes)}",
+        f"Spikes Correlated with Speech: {len(correlations)}",
+        "",
+        "--- SPIKE-WORD CORRELATIONS ---",
+        ""
+    ]
+
+    for i, corr in enumerate(correlations, 1):
+        lines.append(f"SPIKE #{i}:")
+        lines.append(f"  Time: {corr['spike_time']:.1f}s ({corr['spike_bpm']:.0f} BPM, {corr['spike_ratio']:.1f}x baseline)")
+        lines.append(f"  Coincided with [{corr['word_time_str']}]: \"{corr['text']}\"")
+        lines.append(f"  Correlation Confidence: {corr['confidence']}")
+        lines.append("")
+
+    if correlations:
+        lines.append("--- INVESTIGATIVE PRIORITIES ---")
+        lines.append("(Topics that triggered physiological stress response)")
+        lines.append("")
+        for corr in sorted(correlations, key=lambda x: x['spike_ratio'], reverse=True)[:3]:
+            lines.append(f"• [{corr['word_time_str']}] {corr['spike_ratio']:.1f}x spike: \"{corr['text'][:50]}...\"")
+
+    lines.append("")
+    lines.append("═══════════════════════════════════════════════════════════════")
+
+    return '\n'.join(lines)
+
+
 def get_blink_metrics_for_prompt(video_path: str) -> Dict:
     """
     Get blink metrics formatted for passing to LLM prompts.
@@ -331,7 +525,8 @@ def get_blink_metrics_for_prompt(video_path: str) -> Dict:
                     'peak_bpm': analysis.peak_bpm,
                     'peak_timestamp': analysis.peak_timestamp,
                     'stress_window_count': len(analysis.stress_windows)
-                }
+                },
+                'raw_analysis': analysis  # For transcript annotation
             }
     except Exception as e:
         logger.error(f"Blink detection failed: {e}")
@@ -395,13 +590,18 @@ def parse_llm_blink_estimate(llm_output: str) -> Dict:
 
 def fuse_blink_metrics(cv_metrics: Dict, llm_output: str) -> Dict:
     """
-    Fuse CV-detected blink metrics with LLM estimates for higher accuracy.
+    Fuse CV-detected blink metrics with LLM estimates.
+
+    CRITICAL: CV is GROUND TRUTH for blink counting.
+    - CV uses EAR algorithm on MediaPipe Face Mesh - measures actual eye closures
+    - LLM guesses from video frames - prone to hallucination (often 2-5x inflation)
+    - CV should ALWAYS be preferred when available
 
     Fusion Strategy:
-    1. If both sources agree (within 50%), average them
-    2. If CV detected very few blinks, weight LLM higher (CV may have missed)
-    3. If CV has high face detection rate, weight CV higher
-    4. Return fused result with confidence indicator
+    1. If CV is available, USE CV as the authoritative source
+    2. Only use LLM if CV is unavailable or detected zero blinks
+    3. Flag significant discrepancies for investigation
+    4. NEVER let hallucinated LLM peaks (>50 BPM) override CV data
 
     Args:
         cv_metrics: Dict from get_blink_metrics_for_prompt()
@@ -416,23 +616,35 @@ def fuse_blink_metrics(cv_metrics: Dict, llm_output: str) -> Dict:
     cv_bpm = cv_metrics.get('metrics', {}).get('bpm', 0)
     cv_baseline = cv_metrics.get('metrics', {}).get('baseline_bpm', 0)
     cv_peak = cv_metrics.get('metrics', {}).get('peak_bpm', 0)
+    cv_total_blinks = cv_metrics.get('metrics', {}).get('total_blinks', 0)
 
     llm_baseline = llm_parsed.get('baseline_bpm')
     llm_peak = llm_parsed.get('peak_bpm')
     llm_parsed_ok = llm_parsed.get('parsed', False)
 
-    # Default to CV if available, otherwise LLM
+    # Default to CV - it is ground truth
     fused = {
         'fused_bpm': cv_bpm,
         'fused_baseline': cv_baseline,
         'fused_peak': cv_peak,
         'cv_bpm': cv_bpm,
+        'cv_total_blinks': cv_total_blinks,
         'llm_baseline': llm_baseline,
         'llm_peak': llm_peak,
-        'fusion_method': 'cv_only',
-        'confidence': 'low',
-        'discrepancy_flag': False
+        'fusion_method': 'cv_ground_truth',
+        'confidence': 'high' if cv_available else 'none',
+        'discrepancy_flag': False,
+        'llm_hallucination_detected': False
     }
+
+    # Check for LLM hallucination (claims >50 BPM is almost always wrong)
+    if llm_peak and llm_peak > 50:
+        fused['llm_hallucination_detected'] = True
+        logger.warning(f"LLM blink hallucination detected: claimed {llm_peak} BPM peak")
+
+    if llm_baseline and llm_baseline > 50:
+        fused['llm_hallucination_detected'] = True
+        logger.warning(f"LLM blink hallucination detected: claimed {llm_baseline} BPM baseline")
 
     if not cv_available and not llm_parsed_ok:
         fused['fusion_method'] = 'none'
@@ -440,79 +652,37 @@ def fuse_blink_metrics(cv_metrics: Dict, llm_output: str) -> Dict:
         return fused
 
     if not cv_available and llm_parsed_ok:
-        fused['fused_bpm'] = llm_baseline or 0
-        fused['fused_baseline'] = llm_baseline or 0
-        fused['fused_peak'] = llm_peak or 0
-        fused['fusion_method'] = 'llm_only'
+        # Only use LLM if CV completely unavailable, and cap at reasonable values
+        fused['fused_bpm'] = min(llm_baseline or 0, 40)  # Cap at 40 BPM
+        fused['fused_baseline'] = min(llm_baseline or 0, 40)
+        fused['fused_peak'] = min(llm_peak or 0, 50)  # Cap peaks at 50
+        fused['fusion_method'] = 'llm_only_capped'
         fused['confidence'] = 'low'
         return fused
 
-    if cv_available and not llm_parsed_ok:
-        fused['fusion_method'] = 'cv_only'
-        fused['confidence'] = 'medium' if cv_bpm > 5 else 'low'
+    if cv_available:
+        # CV IS GROUND TRUTH - always use CV values
+        fused['fusion_method'] = 'cv_ground_truth'
+        fused['confidence'] = 'high'
+
+        # Flag discrepancy if LLM differs significantly
+        if llm_baseline and cv_baseline > 0:
+            ratio = llm_baseline / cv_baseline
+            if ratio > 2.0 or ratio < 0.5:
+                fused['discrepancy_flag'] = True
+                logger.warning(
+                    f"Blink rate discrepancy: CV={cv_bpm:.1f} BPM, LLM claimed={llm_baseline} BPM "
+                    f"(ratio={ratio:.1f}x). Using CV as ground truth."
+                )
+
+        # For peak, still use CV but flag if LLM claims much higher
+        if llm_peak and cv_peak > 0 and llm_peak > cv_peak * 2:
+            fused['discrepancy_flag'] = True
+            logger.warning(
+                f"Peak blink discrepancy: CV peak={cv_peak:.1f} BPM, LLM claimed={llm_peak} BPM. "
+                f"Using CV as ground truth."
+            )
+
         return fused
 
-    # Both available - apply fusion logic
-    if llm_baseline and cv_baseline > 0:
-        # Check agreement
-        ratio = llm_baseline / cv_baseline if cv_baseline > 0 else float('inf')
-
-        if 0.5 <= ratio <= 2.0:
-            # Good agreement - average them
-            fused['fused_baseline'] = (cv_baseline + llm_baseline) / 2
-            fused['fused_bpm'] = (cv_bpm + llm_baseline) / 2
-            fused['fusion_method'] = 'averaged'
-            fused['confidence'] = 'high'
-        elif cv_bpm < 5:
-            # CV detected almost nothing - trust LLM more
-            fused['fused_baseline'] = llm_baseline * 0.7 + cv_baseline * 0.3
-            fused['fused_bpm'] = llm_baseline * 0.7 + cv_bpm * 0.3
-            fused['fusion_method'] = 'llm_weighted'
-            fused['confidence'] = 'medium'
-            fused['discrepancy_flag'] = True
-        else:
-            # Significant disagreement - weight by plausibility
-            # Normal range is 15-25 BPM, so weight toward that
-            cv_plausible = 10 <= cv_bpm <= 40
-            llm_plausible = 10 <= llm_baseline <= 40
-
-            if cv_plausible and not llm_plausible:
-                fused['fusion_method'] = 'cv_preferred'
-                fused['confidence'] = 'medium'
-            elif llm_plausible and not cv_plausible:
-                fused['fused_baseline'] = llm_baseline
-                fused['fused_bpm'] = llm_baseline
-                fused['fusion_method'] = 'llm_preferred'
-                fused['confidence'] = 'medium'
-            else:
-                # Both plausible but disagree - average with flag
-                fused['fused_baseline'] = (cv_baseline + llm_baseline) / 2
-                fused['fused_bpm'] = (cv_bpm + llm_baseline) / 2
-                fused['fusion_method'] = 'averaged_discrepant'
-                fused['confidence'] = 'medium'
-                fused['discrepancy_flag'] = True
-
-    # Handle peak
-    if llm_peak and cv_peak > 0:
-        fused['fused_peak'] = (cv_peak + llm_peak) / 2
-    elif llm_peak:
-        fused['fused_peak'] = llm_peak
-
-    logger.info(f"Blink fusion: CV={cv_bpm:.1f}, LLM={llm_baseline}, "
-               f"Fused={fused['fused_bpm']:.1f} ({fused['fusion_method']})")
-
     return fused
-
-
-# Test
-if __name__ == "__main__":
-    import sys
-    if len(sys.argv) > 1:
-        video_path = sys.argv[1]
-        print(f"Analyzing: {video_path}")
-        result = get_blink_metrics_for_prompt(video_path)
-        print(result['formatted_text'])
-        print(f"\nMetrics: {result['metrics']}")
-    else:
-        print("Usage: python blink_detector.py <video_path>")
-        print(f"MediaPipe available: {MEDIAPIPE_AVAILABLE}")

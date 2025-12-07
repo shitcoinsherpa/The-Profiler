@@ -133,58 +133,65 @@ Be conservative - identify incongruence, do not diagnose deception. Note uncerta
 # Based on The Behavior Ops Manual and Six-Minute X-Ray methodologies
 # =============================================================================
 
-VISUAL_BLINK_RATE_PROMPT = """Analyze blink rate patterns as stress and deception indicators.
+VISUAL_BLINK_RATE_PROMPT = """Interpret blink rate patterns as stress and deception indicators.
+
+**CRITICAL: CV-DETECTED BLINK DATA (GROUND TRUTH)**
+{cv_blink_data}
+
+The above data was measured by computer vision using MediaPipe Face Mesh EAR
+(Eye Aspect Ratio) algorithm. These are ACCURATE measurements of actual eye closures.
+DO NOT estimate your own blink rates - USE THE CV DATA ABOVE.
+
+YOUR ROLE: INTERPRET the CV data, don't detect blinks yourself.
+- The CV has already counted the blinks accurately
+- Your job is to CORRELATE blink patterns with CONTENT/TOPICS
+- Explain WHY stress spikes occurred at specific moments
+- Connect the physiological data to what was being discussed
 
 BASELINE REFERENCE (Chase Hughes/NCI methodology):
 - Normal baseline: 17-25 blinks per minute (BPM)
 - Focused/calm state: 7-10 BPM (reduced blinking indicates engagement)
 - Stressed/deceptive state: Up to 50 BPM (elevated blinking indicates stress)
 
-Analyze the subject's blinking patterns throughout the video:
+ANALYSIS TASKS (using CV data above):
 
-1. BASELINE ESTIMATION:
-   - Estimate the subject's baseline blink rate during neutral moments
-   - Note any periods of sustained low blink rate (focus/calm)
-   - Note any periods of elevated blink rate (stress/anxiety)
+1. STRESS WINDOW INTERPRETATION:
+   - Look at the STRESS WINDOWS from CV data
+   - What was the subject discussing during those timestamps?
+   - Why might these topics have triggered elevated blinking?
 
-2. BLINK RATE CHANGES:
-   - Identify moments where blink rate INCREASES suddenly
-   - Note what topic or question preceded the change
-   - Flag these as potential stress indicators
+2. BLINK CLUSTER INTERPRETATION:
+   - Look at the BLINK CLUSTERS from CV data
+   - These are rapid sequences of blinks in short time windows
+   - What topic/memory was being accessed when clusters occurred?
 
 3. TOPIC-CORRELATED ANALYSIS:
-   - Which topics or statements correlated with elevated blinking?
-   - Which topics showed reduced/calm blinking?
-   - Create a blink rate timeline if possible
+   - Match CV timestamps to video content
+   - Which topics correlated with elevated blinking?
+   - Which topics showed the calm baseline rate?
 
-4. DECEPTION CORRELATION:
+4. BEHAVIORAL SIGNIFICANCE:
+   - Using the CV baseline vs peak delta, assess stress level
    - Elevated blink rate alone does NOT prove deception
    - Note as STRESS INDICATOR requiring follow-up
-   - Correlate with other behavioral clusters
 
-Provide:
-- Estimated baseline blink rate: [X] BPM
-- Peak elevated rate observed: [X] BPM
-- **BASELINE-TO-SPIKE DELTA**: [X]% increase from baseline
-  (Example: Baseline 18 BPM -> Peak 62 BPM = 244% increase = HIGH STRESS)
+Provide (USING CV DATA, not your own estimates):
+- CV-measured baseline: [from data above] BPM
+- CV-measured peak: [from data above] BPM
+- CV-measured delta: [from data above] %
 - Delta Classification:
   - <50% increase: Normal variation
   - 50-150% increase: Moderate stress
-  - 150-300% increase: HIGH stress (investigate topic)
-  - >300% increase: EXTREME stress (critical flag)
-- Moments of elevated blinking: [timestamp/topic/delta%]
-- Blink rate assessment: NORMAL / ELEVATED / HIGHLY ELEVATED
+  - 150-300% increase: HIGH stress
+  - >300% increase: EXTREME stress
+- TOPIC CORRELATION: What was discussed during stress windows?
+- CLUSTER INTERPRETATION: Why did blink clusters occur at those moments?
 - Stress correlation confidence: Low/Medium/High
 
-TIMELINE FORMAT:
-[MM:SS] - [BPM] - [Delta from baseline] - [Topic/Context]
+TIMELINE FORMAT (correlating CV data with content):
+[CV Timestamp] - [CV BPM] - [Delta] - [What subject was discussing]
 
-Example:
-0:00-0:30 - 18 BPM - BASELINE - Introduction
-0:45 - 45 BPM - +150% SPIKE - "When asked about the money"
-1:12 - 22 BPM - +22% - General discussion
-
-Focus ONLY on blink rate analysis - be precise with observations."""
+Focus on INTERPRETATION and CORRELATION - the CV has already done the detection."""
 
 
 VISUAL_BTE_SCORING_PROMPT = """Score behavioral indicators using the Behavioral Table of Elements (BTE) methodology.
@@ -1378,14 +1385,29 @@ Synthesize ALL NCI/Chase Hughes deception indicators into a unified assessment.
    | Gestural Mismatch | LOW/MED/HIGH     | %          | [evidence]   |
    | Vocal Indicators  | LOW/MED/HIGH     | %          | [evidence]   |
    | Linguistic (LIWC) | LOW/MED/HIGH     | %          | [evidence]   |
+   | Five C's          | LOW/MED/HIGH     | %          | [evidence]   |
    | Detail Mt/Valley  | LOW/MED/HIGH     | %          | [evidence]   |
+
+   **MANDATORY CONFLICT RESOLUTION** (DO NOT SKIP THIS SECTION):
+   When modalities disagree (e.g., BTE=HIGH but LIWC=LOW), you MUST:
+   1. Explicitly state the conflict: "CONFLICT: BTE indicates HIGH deception (score 16) while LIWC indicates LOW (Authenticity 88, high self-reference)"
+   2. Analyze WHY they disagree - what could cause this divergence?
+   3. Apply hierarchy: Involuntary > Voluntary, Clusters > Isolated, Cross-modal > Single-modal
+   4. Issue a RULING with specific reasoning
 
    CONFLICTS IDENTIFIED:
    - [Modality A] vs [Modality B]: [Describe conflict]
-   - Resolution: [Explain which signal is more reliable and why]
+   - RULING: [Which modality is more reliable for this specific case] because [reasoning]
+   - Alternative interpretation: [What might explain the discrepancy]
 
    AGREEMENT AREAS:
    - [Areas where multiple modalities converge on same conclusion]
+
+   **BLINK RATE DATA RECONCILIATION:**
+   If CV-detected blink rate differs from LLM-estimated rate:
+   - CV data is GROUND TRUTH (measures actual eye closures via EAR algorithm)
+   - Use CV values for all blink rate claims
+   - Note if LLM hallucinated higher values (common failure mode)
 
 INTEGRATED DECEPTION ASSESSMENT:
 
@@ -1421,7 +1443,8 @@ ALL ANALYSIS DATA (includes subject identification):
 SYNTHESIS SUB-ANALYSES:
 {synthesis_results}
 
-**OUTPUT AS A STRUCTURED CASE FILE:**
+**OUTPUT AS A STRUCTURED CASE FILE (DASHBOARD-FIRST FORMAT):**
+Executive decisions at TOP. Raw data as APPENDICES at bottom.
 
 ═══════════════════════════════════════════════════════════════════════════════
                         BEHAVIORAL ANALYSIS UNIT
@@ -1431,105 +1454,157 @@ SYNTHESIS SUB-ANALYSES:
 CLASSIFICATION: UNCLASSIFIED // FOR EDUCATIONAL USE ONLY
 ANALYST: Automated Behavioral Analysis System
 
-───────────────────────────────────────────────────────────────────────────────
-SECTION 1: SUBJECT IDENTIFICATION
-───────────────────────────────────────────────────────────────────────────────
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                      SECTION 1: EXECUTIVE DASHBOARD                         ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-[Extract from the SUBJECT_IDENTIFICATION analysis above. Include:]
-- NAME (if identified) or "UNIDENTIFIED SUBJECT"
-- KNOWN ALIASES / ONLINE HANDLES (if any)
-- PHYSICAL DESCRIPTION (age estimate, ethnicity, distinguishing features)
-- OCCUPATION / PUBLIC ROLE (if identifiable)
-- IDENTIFICATION CONFIDENCE: [HIGH/MEDIUM/LOW/UNIDENTIFIED]
+**ONE-LINE VERDICT:**
+[Single sentence: "Subject displays [HIGH/MODERATE/LOW] deception indicators regarding [topic]"]
 
-───────────────────────────────────────────────────────────────────────────────
-SECTION 2: EXECUTIVE SUMMARY
-───────────────────────────────────────────────────────────────────────────────
+**THREAT MATRIX:**
+┌────────────────────┬──────────┬─────────────────────────────────┐
+│ Category           │ Level    │ Key Evidence                    │
+├────────────────────┼──────────┼─────────────────────────────────┤
+│ Overall Threat     │ [LEVEL]  │ [One-liner summary]             │
+│ Physical Threat    │ [Level]  │ [Brief evidence]                │
+│ Financial/Fraud    │ [Level]  │ [Brief evidence]                │
+│ Manipulation Risk  │ [Level]  │ [Brief evidence]                │
+│ Credibility        │ [Level]  │ [Brief evidence]                │
+└────────────────────┴──────────┴─────────────────────────────────┘
 
+**KEY ANOMALIES (Top 3 - Investigate These First):**
+1. ⚠️ [Timestamp] - [Anomaly description] - [Why critical]
+2. ⚠️ [Timestamp] - [Anomaly description] - [Why critical]
+3. ⚠️ [Timestamp] - [Anomaly description] - [Why critical]
+
+**CV-VALIDATED STRESS TRIGGERS:**
+[From Trigger-Response Map if available - exact words that caused blink spikes]
+- [Timestamp]: "[exact word/phrase]" → [X]x baseline blink spike
+- [Timestamp]: "[exact word/phrase]" → [X]x baseline blink spike
+
+**EXECUTIVE SUMMARY:**
 [2-3 sentence behavioral overview]
-PRIMARY CLASSIFICATION: [Behavioral archetype]
-KEY FINDING: [Most significant behavioral insight - prioritize body language]
 
 ───────────────────────────────────────────────────────────────────────────────
-SECTION 3: THREAT ASSESSMENT
+SECTION 2: SUBJECT IDENTIFICATION
 ───────────────────────────────────────────────────────────────────────────────
 
-OVERALL THREAT LEVEL: [NONE / LOW / MODERATE / HIGH / SEVERE]
-
-| Category           | Level    | Justification                          |
-|--------------------|----------|----------------------------------------|
-| Physical Threat    | [Level]  | [Brief evidence]                       |
-| Financial/Fraud    | [Level]  | [Brief evidence]                       |
-| Manipulation Risk  | [Level]  | [Brief evidence]                       |
-| Flight Risk        | [Level]  | [Brief evidence]                       |
+- NAME: [If identified] or "UNIDENTIFIED SUBJECT"
+- ALIASES: [Online handles, nicknames]
+- DESCRIPTION: [Age, ethnicity, distinguishing features]
+- OCCUPATION: [Role/profession if identifiable]
+- DOMAIN: [Crypto/Finance/Tech/Gaming/Military/Academic/Other]
+- ID CONFIDENCE: [HIGH/MEDIUM/LOW/UNIDENTIFIED]
 
 ───────────────────────────────────────────────────────────────────────────────
-SECTION 4: PSYCHOLOGICAL PROFILE
+SECTION 3: CREDIBILITY ANALYSIS (The "Why")
 ───────────────────────────────────────────────────────────────────────────────
 
-PRIMARY ARCHETYPE: [From archetype analysis]
-SECONDARY TRAITS: [Supporting characteristics]
+**OVERALL VERACITY:** [TRUTHFUL / MIXED / DECEPTIVE]
+**BTE SCORE:** [Score] ([Below 8: Low | 8-12: Moderate | 12+: High concern])
+**CONFIDENCE:** [HIGH/MEDIUM/LOW]
 
-BIG FIVE PROFILE:
-- Openness: [Score]/100 - [Key evidence]
-- Conscientiousness: [Score]/100 - [Key evidence]
-- Extraversion: [Score]/100 - [Key evidence]
-- Agreeableness: [Score]/100 - [Key evidence]
-- Neuroticism: [Score]/100 - [Key evidence]
+**CRITICAL DECEPTION INDICATORS:**
+| # | Timestamp | Indicator | Evidence | Weight |
+|---|-----------|-----------|----------|--------|
+| 1 | [Time]    | [Type]    | [Detail] | HIGH   |
+| 2 | [Time]    | [Type]    | [Detail] | HIGH   |
+| 3 | [Time]    | [Type]    | [Detail] | MEDIUM |
 
-DARK TRIAD INDICATORS:
-- Narcissism: [Score]/100 - [Behavioral evidence]
-- Machiavellianism: [Score]/100 - [Behavioral evidence]
-- Psychopathy: [Score]/100 - [Behavioral evidence]
+**BODY-VERBAL CONFLICTS:**
+| Timestamp | Said | Body Did | Interpretation |
+|-----------|------|----------|----------------|
+| [Time]    | "[quote]" | [behavior] | [meaning] |
+
+**COGNITIVE LOAD HOTSPOTS:**
+Topics that triggered measurable stress response:
+- [Topic 1]: [Evidence]
+- [Topic 2]: [Evidence]
+
+───────────────────────────────────────────────────────────────────────────────
+SECTION 4: CONFLICT RESOLUTION (Modality Disagreements)
+───────────────────────────────────────────────────────────────────────────────
+
+**EXPLICIT CONFLICTS RESOLVED:**
+
+| Conflict | Analysis A | Analysis B | Ruling | Reasoning |
+|----------|------------|------------|--------|-----------|
+| Blink Rate | LLM: [X] BPM | CV: [Y] BPM | CV (ground truth) | [why] |
+| Deception | BTE: HIGH | LIWC: LOW | [ruling] | [stress ≠ deception?] |
+| Neuroticism | Facial Etching: LOW | Behavior: HIGH | Dynamic (behavior) | [why] |
+
+**LEAD INVESTIGATOR RULING:**
+[Final credibility determination with evidence-based reasoning]
+
+───────────────────────────────────────────────────────────────────────────────
+SECTION 5: OPERATIONAL RECOMMENDATIONS
+───────────────────────────────────────────────────────────────────────────────
+
+**INTERVIEW APPROACH:** [Strategy with rationale]
+
+**PSYCHOLOGICAL LEVERAGE POINTS:**
+1. [Point with rationale]
+2. [Point with rationale]
+3. [Point with rationale]
+
+**PRESSURE RESPONSE PREDICTION:** [How subject reacts when challenged]
+
+**DE-ESCALATION TRIGGERS:** [What to avoid]
+
+**INVESTIGATIVE PRIORITIES:**
+1. [Primary verification need with rationale]
+2. [Secondary focus]
+3. [Tertiary focus]
+
+**STATEMENTS REQUIRING VERIFICATION:**
+- [Timestamp]: "[Specific claim]"
+- [Timestamp]: "[Specific claim]"
+
+═══════════════════════════════════════════════════════════════════════════════
+                              APPENDICES
+                     (Raw Data for Forensic Review)
+═══════════════════════════════════════════════════════════════════════════════
+
+───────────────────────────────────────────────────────────────────────────────
+APPENDIX A: CHRONOLOGICAL HOT SPOT MAP
+───────────────────────────────────────────────────────────────────────────────
+
+| Time | Event Type | Signals | Interpretation |
+|------|------------|---------|----------------|
+| [Time] | [Type] | [Signals] | [Meaning] |
+[Continue for all significant moments, sorted by timestamp]
+
+───────────────────────────────────────────────────────────────────────────────
+APPENDIX B: PSYCHOLOGICAL PROFILE
+───────────────────────────────────────────────────────────────────────────────
+
+PRIMARY ARCHETYPE: [Type]
+SECONDARY TRAITS: [Traits]
+
+**Big Five:**
+- Openness: [Score]/100 - [Evidence]
+- Conscientiousness: [Score]/100 - [Evidence]
+- Extraversion: [Score]/100 - [Evidence]
+- Agreeableness: [Score]/100 - [Evidence]
+- Neuroticism: [Score]/100 - [Evidence]
+
+**Dark Triad:**
+- Narcissism: [Score]/100 - [Evidence]
+- Machiavellianism: [Score]/100 - [Evidence]
+- Psychopathy: [Score]/100 - [Evidence]
 
 MBTI HYPOTHESIS: [Type] ([Confidence])
 
 ───────────────────────────────────────────────────────────────────────────────
-SECTION 5: DECEPTION ANALYSIS
+APPENDIX C: DOMAIN-SPECIFIC LEXICON ADJUSTMENTS
 ───────────────────────────────────────────────────────────────────────────────
 
-OVERALL VERACITY: [TRUTHFUL / MIXED / DECEPTIVE]
-BTE SCORE: [Score] - [Interpretation]
+Subject Domain: [Crypto/Finance/Tech/Gaming/Military/Academic]
 
-CRITICAL DECEPTION INDICATORS:
-[List top 3-5 moments with timestamps where deception markers clustered]
-
-BODY-VERBAL CONFLICT LOG:
-| Timestamp | Verbal Claim | Body Signal | Interpretation |
-|-----------|--------------|-------------|----------------|
-[Fill from analysis - minimum 3 entries]
-
-COGNITIVE LOAD HOTSPOTS:
-[List topics/moments that produced highest cognitive stress]
-
-───────────────────────────────────────────────────────────────────────────────
-SECTION 6: OPERATIONAL RECOMMENDATIONS
-───────────────────────────────────────────────────────────────────────────────
-
-INTERVIEW APPROACH: [Recommended strategy with rationale]
-
-PSYCHOLOGICAL LEVERAGE POINTS:
-- [Point 1]
-- [Point 2]
-- [Point 3]
-
-DE-ESCALATION TRIGGERS:
-- [What to avoid / what calms subject]
-
-PREDICTED RESPONSES TO PRESSURE:
-- [How subject likely reacts when challenged]
-
-───────────────────────────────────────────────────────────────────────────────
-SECTION 7: INVESTIGATIVE PRIORITIES
-───────────────────────────────────────────────────────────────────────────────
-
-1. [Primary area requiring verification - with rationale]
-2. [Secondary investigation focus]
-3. [Tertiary investigation focus]
-
-STATEMENTS REQUIRING VERIFICATION:
-- [Specific claim with timestamp]
-- [Specific claim with timestamp]
+Words recalibrated from literal to domain meaning:
+| Word | Literal | Domain Meaning | Weight Adjustment |
+|------|---------|----------------|-------------------|
+| [word] | [literal] | [domain] | [neutral/reduced] |
 
 ═══════════════════════════════════════════════════════════════════════════════
                            END OF CASE FILE
@@ -1544,18 +1619,48 @@ STATEMENTS REQUIRING VERIFICATION:
 - Facial Etching analysis is SUPPLEMENTARY only (low scientific validity for personality prediction)
   Use it for physical baseline description, NOT as primary personality evidence
 
-**CONFLICT RESOLUTION PROTOCOL:**
-You are the Lead Investigator. When analyses conflict (e.g., Audio says "Truth" while Body says "Deceptive"):
-1. Check TIMING/LATENCY - delays suggest cognitive load
-2. Check CLUSTER DENSITY - multiple simultaneous indicators outweigh isolated signals
-3. ADJUDICATE with explicit reasoning - do not just list conflicts, RESOLVE them
-4. State your ruling: "RULING: [Truthful/Deceptive/Inconclusive] because [specific evidence]"
+**CONFLICT RESOLUTION PROTOCOL (MANDATORY - DO NOT SKIP):**
+You are the Lead Investigator. When analyses conflict, you MUST RESOLVE them with explicit reasoning.
+
+COMMON CONFLICTS TO ADDRESS:
+- BTE Score HIGH (12+) vs LIWC/Five C's showing LOW deception: This often means the subject is experiencing STRESS (body) while being TRUTHFUL (language). Stress ≠ Deception.
+- High blink rate claims vs CV data: ALWAYS use CV-detected blink rates as ground truth. LLMs frequently hallucinate 2-5x higher blink rates.
+
+RESOLUTION HIERARCHY:
+1. CV-measured data > LLM-estimated data (blink rates, etc.)
+2. DYNAMIC behavioral data > STATIC physiological data (critical!)
+   - Dynamic: Blinks, sweating, fidgeting, voice stress, micro-expressions
+   - Static: Facial etching, wrinkle patterns, bone structure
+   - If Facial Etching says "Low Neuroticism" but dynamic behavior shows "High stress" → TRUST DYNAMIC
+   - Static features show long-term tendencies; dynamic features show current state
+3. Involuntary behaviors > Voluntary behaviors
+4. Cluster patterns > Isolated incidents
+5. Cross-modal alignment > Single-modal signals
+6. Linguistic authenticity markers (LIWC) can explain away visual stress as emotional recall, not deception
+
+REQUIRED FORMAT for each conflict:
+"CONFLICT: [Modality A] indicates [X] while [Modality B] indicates [Y]
+RULING: [Your adjudication]
+REASONING: [Specific evidence-based explanation]"
+
+If BTE=HIGH but LIWC/Five C's=LOW, consider:
+- Is subject recalling genuinely painful memories? (stress without deception)
+- Are stress indicators clustered around specific topics? (may indicate emotional sensitivity, not lies)
+- Does linguistic analysis show high authenticity/self-reference? (truth markers)
 
 **QUANTITATIVE BACKING REQUIREMENT:**
 All personality/behavioral claims MUST cite specific LIWC metrics:
 - BAD: "Subject uses intellectualization"
 - GOOD: "Subject uses intellectualization (LIWC Cognitive Process: 19.5%, Analytical Thinking: 42)"
 Include at least 3 LIWC metrics in the Psychological Profile section.
+
+**REDUNDANCY ELIMINATION (CRITICAL):**
+The input analyses may describe the same behavioral observation multiple times.
+- DO NOT repeat the same observation more than once in your output
+- If "nose rub at 0:56" appears in 5 different analyses, mention it ONCE with "[5 analyses flagged]"
+- Consolidate similar observations: "Multiple self-soothing gestures (neck rub, nose touch, eye blocking) clustered at 1:12"
+- Focus on PATTERNS not individual instances
+- Your output should be CONCISE - if an observation has been noted, do not describe it again
 
 Generate the complete case file following this exact structure.
 Reference the subject identification analysis to fill Section 1."""
@@ -1617,48 +1722,425 @@ Then provide the physical description sections."""
 
 
 # =============================================================================
+# STAGE 0: SUBJECT ID & BASELINE (Run FIRST before other analyses)
+# =============================================================================
+
+BASELINE_ESTABLISHMENT_PROMPT = """Establish behavioral BASELINE using DYNAMIC BASELINE FINDING.
+
+**CRITICAL: This analysis MUST run before anomaly detection.**
+The baseline you establish here will be used by all subsequent analyses to identify DEVIATIONS.
+
+**DYNAMIC BASELINE FINDING PROTOCOL:**
+DO NOT automatically use the first 30 seconds. Instead:
+
+1. SCAN THE ENTIRE VIDEO FIRST for these segments:
+   - Lowest movement/fidgeting
+   - Most neutral facial expression
+   - Steadiest vocal tone (if audible)
+   - Calmest topic being discussed
+
+2. IDENTIFY THE BEST BASELINE SEGMENT:
+   - May be at the START (introductions, small talk)
+   - May be in the MIDDLE (discussing factual/neutral topics)
+   - May be at the END (wrap-up, pleasantries)
+   - AVOID: Segments where subject is clearly agitated, defensive, or animated
+
+3. DOCUMENT YOUR BASELINE SELECTION:
+   - Segment used: [Start time] - [End time]
+   - Why selected: [Reasoning - "lowest fidget rate," "neutral topic," etc.]
+   - Why NOT first 30 seconds (if applicable): [e.g., "Subject started with high-energy pitch"]
+
+FOCUS ON YOUR SELECTED BASELINE SEGMENT:
+
+1. VISUAL BASELINE:
+   - EYE "HOME" POSITION: Where do eyes rest when subject is thinking/neutral?
+   - BLINK RATE: Estimate comfortable baseline BPM
+   - RESTING FACE: What is their neutral expression? Any permanent asymmetries?
+   - POSTURE: Natural sitting/standing position
+   - HAND POSITION: Where do hands naturally rest?
+   - MOVEMENT LEVEL: Natural fidget frequency (some people are naturally fidgety)
+
+2. VOCAL BASELINE:
+   - SPEAKING PACE: Words per minute during neutral content
+   - PITCH RANGE: Normal comfortable range
+   - VOLUME: Default projection level
+   - PAUSE FREQUENCY: Natural hesitation patterns
+
+3. BEHAVIORAL BASELINE:
+   - SELF-TOUCH FREQUENCY: How often do they touch face/hair at baseline?
+   - GESTURE STYLE: Are they naturally expressive or reserved?
+   - ENGAGEMENT INDICATORS: How do they show interest normally?
+
+4. ENVIRONMENTAL FACTORS (Critical for false positive reduction):
+   - HEADPHONES/HEADSET: Subject wearing headphones that may cause ear/head touching?
+   - HAT/HEADWEAR: May cause head touching or adjustments
+   - FACIAL HAIR: Beard/mustache that may be scratched habitually
+   - GLASSES: May be adjusted frequently
+   - VISIBLE DISCOMFORT: Signs of physical discomfort (cold room, uncomfortable chair)
+   - LIGHTING: Bright lights that may cause squinting or eye rubbing
+
+**OUTPUT FORMAT:**
+
+=== BASELINE PROFILE ===
+SEGMENT ANALYZED: [timestamp range]
+BASELINE QUALITY: HIGH/MEDIUM/LOW (based on how neutral the segment appeared)
+
+VISUAL BASELINE:
+- Eye home position: [description]
+- Baseline blink rate: ~[X] BPM
+- Resting expression: [description]
+- Posture baseline: [description]
+- Hand position default: [description]
+- Natural movement level: LOW/MEDIUM/HIGH
+
+VOCAL BASELINE:
+- Speaking pace: ~[X] WPM
+- Pitch: [description]
+- Volume: [description]
+- Pause pattern: [description]
+
+HABITUAL BEHAVIORS (NOT stress indicators):
+- [List behaviors that appear to be habitual, not stress-induced]
+- Example: "Frequent beard stroking - appears habitual, not tied to topic"
+
+PHYSICAL DISCOMFORT FACTORS:
+- [List any environmental/equipment factors that may cause movements]
+- Example: "Wearing over-ear headphones - expect ear/head touching"
+
+=== DEVIATION DETECTION GUIDANCE ===
+For subsequent analyses, ONLY flag behaviors that DEVIATE from this baseline.
+DO NOT score habitual behaviors as stress indicators."""
+
+
+KINESIC_EVENT_LOG_PROMPT = """Generate a single KINESIC EVENT LOG (replaces all separate behavioral analyses).
+
+**PURPOSE: ONE master chronological log of ALL behavioral events.**
+This consolidates FACS, BTE, Body Language, Gestural Mismatch, and Gesture Timeline into
+a single source of truth. Each behavior is coded ONCE with all metrics attached.
+
+**BASELINE CONTEXT (if available):**
+{baseline_context}
+
+=== KINESIC EVENT LOG ===
+
+For EVERY significant behavioral event, create ONE entry with ALL relevant data:
+
+| Time | Event | FACS | BTE | Category | Verbal Sync | Touch Target | Significance |
+
+COLUMN DEFINITIONS:
+- **Time**: MM:SS timestamp
+- **Event**: Brief description of behavior
+- **FACS**: Action Unit codes (AU1, AU4, AU12, etc.) or "-" if not facial
+- **BTE**: Score 0-3 (0=baseline, 1=mild, 2=clear, 3=pronounced)
+- **Category**: PACIFIER / BARRIER / STRESS / EMPHASIS / CONCEALMENT / MISMATCH / EQUIPMENT
+- **Verbal Sync**: What was being said? Was gesture BEFORE/DURING/AFTER the word?
+- **Touch Target**: SKIN / HAIR / OBJECT (hat, headphones, glasses) / N/A
+- **Significance**: IGNORE / LOW / MEDIUM / HIGH / CRITICAL
+
+FACS QUICK REFERENCE:
+AU1+AU2: Surprise | AU4: Anger/Concentration | AU6+AU12: Genuine smile
+AU12: Social smile | AU14: Contempt | AU15: Sadness | AU17: Doubt | AU24: Tension
+
+**GEAR ADJUSTMENT FILTER (Critical - Apply BEFORE scoring):**
+
+STEP 1: Identify all gear the subject is wearing:
+- Headphones/earbuds? → Ear/head touches may be INSTRUMENTAL
+- Hat/cap? → Head touches may be INSTRUMENTAL
+- Glasses? → Face touches near eyes may be INSTRUMENTAL
+- Jewelry (rings, watch, necklace)? → Object manipulation may be INSTRUMENTAL
+
+STEP 2: For each potential self-adaptor, check TOUCH TARGET:
+- SKIN contact (cheek, nose, neck skin, lips) = PSYCHOLOGICAL - score normally
+- OBJECT contact (headphone cup, hat brim, glasses frame) = INSTRUMENTAL - score 0
+
+STEP 3: For OBJECT touches, only upgrade to psychological if:
+- Touch is REPETITIVE (3+ times in 30 seconds) AND
+- Touch occurs during SENSITIVE TOPICS (not random)
+
+**GESTURAL-VERBAL SYNCHRONY (Include in every entry):**
+- Gesture BEFORE word = AUTHENTIC (natural speech)
+- Gesture DURING word = AUTHENTIC
+- Gesture AFTER word = POSSIBLE REHEARSAL (flag as MISMATCH category)
+
+**EXAMPLE LOG:**
+
+| 0:34 | Single-shoulder shrug | - | 3 | MISMATCH | "definitely" - AFTER | N/A | HIGH - uncertainty leak |
+| 0:52 | Nose touch | - | 2 | PACIFIER | "the deal" - DURING | SKIN | MEDIUM - skin contact |
+| 1:12 | Hand to head | - | 0 | EQUIPMENT | casual speech | OBJECT (hat) | IGNORE - instrumental |
+| 1:45 | Lip compression | AU24 | 2 | STRESS | "never said that" - DURING | N/A | HIGH - denial + tension |
+| 2:03 | Head shake "no" | - | 3 | MISMATCH | "yes, absolutely" - DURING | N/A | CRITICAL - verbal contradiction |
+
+=== SUMMARY STATISTICS ===
+
+TOTAL EVENTS LOGGED: [count]
+EVENTS FILTERED (Instrumental/Equipment): [count]
+NET PSYCHOLOGICAL EVENTS: [count]
+
+TOTAL BTE SCORE (psychological events only): [sum]
+- Below 8: Low concern
+- 8-12: Moderate concern
+- 12+: High concern - investigate
+
+GESTURAL MISMATCHES DETECTED: [count]
+- List each with timestamp
+
+STRESS CLUSTERS (3+ events within 5 sec):
+- [Timestamp range]: [Events] - [Topic being discussed]
+
+TOP 5 CRITICAL MOMENTS (ranked by significance):
+1. [Time] - [Event] - [Why critical]
+2. ...
+
+=== GEAR FILTER AUDIT ===
+Gear identified: [list]
+Events filtered as instrumental: [count]
+- [Time]: [Event] - [Reason filtered]
+
+This is the SINGLE SOURCE OF TRUTH for all behavioral observations."""
+
+
+DEEPFAKE_DETECTION_PROMPT = """Analyze video for deepfake/AI-generation artifacts.
+
+**PURPOSE: Authentication layer before behavioral profiling.**
+Digital-native subjects (influencers, crypto traders) may use AI-generated or manipulated content.
+
+DETECTION CRITERIA:
+
+1. FACIAL CONSISTENCY:
+   - Does face lighting match background lighting?
+   - Are there unnatural shadows or highlight patterns?
+   - Does facial movement appear fluid or "floaty"?
+   - Are there temporal glitches (face jumps/resets)?
+
+2. AUDIO-VISUAL SYNC:
+   - Do lip movements match audio precisely?
+   - Are there micro-delays between speech and mouth movement?
+   - Does breath timing match visible chest movement?
+
+3. BOUNDARY ARTIFACTS:
+   - Is there blurring/shimmer at face-hair boundary?
+   - Are earlobes/ears rendered consistently?
+   - Does neck-face boundary show artifacts?
+   - Are teeth rendered consistently across frames?
+
+4. TEMPORAL COHERENCE:
+   - Does blink pattern appear natural or regularized?
+   - Are there impossible physiological movements?
+   - Do micro-expressions appear or disappear too sharply?
+
+5. BACKGROUND ANALYSIS:
+   - Does background show warping during face movement?
+   - Are reflective surfaces consistent with face position?
+   - Do shadows move appropriately with subject movement?
+
+6. AUDIO ARTIFACTS:
+   - Unnatural pauses or breathing patterns
+   - Clipped phonemes or synthetic-sounding segments
+   - Room reverb inconsistencies
+
+**OUTPUT FORMAT:**
+
+=== AUTHENTICITY ASSESSMENT ===
+
+OVERALL VERDICT: AUTHENTIC / LIKELY AUTHENTIC / SUSPICIOUS / LIKELY SYNTHETIC
+
+ARTIFACT ANALYSIS:
+| Category | Finding | Confidence | Timestamp |
+|----------|---------|------------|-----------|
+| Facial consistency | [observation] | HIGH/MED/LOW | [if applicable] |
+| ... | ... | ... | ... |
+
+RED FLAGS DETECTED: [count]
+[List any suspicious indicators]
+
+CONFIDENCE IN ASSESSMENT: HIGH / MEDIUM / LOW
+
+RECOMMENDATION:
+- AUTHENTIC: Proceed with behavioral analysis
+- LIKELY AUTHENTIC: Proceed with caution, note in report
+- SUSPICIOUS: Flag for human review before profiling
+- LIKELY SYNTHETIC: Abort behavioral profiling, report as manipulated media
+
+NOTE: This is a heuristic check, not forensic-grade detection.
+High-quality deepfakes may pass this screening."""
+
+
+AUDIO_LINGUISTIC_COMBINED_PROMPT = """Perform COMBINED audio-linguistic analysis (voice prosody + speech content).
+
+**CRITICAL: YOU ARE ANALYZING RAW AUDIO, NOT A TEXT TRANSCRIPT.**
+Listen to the actual audio waveform. DO NOT guess prosody from punctuation or word choice.
+If you cannot hear the audio, explicitly state: "AUDIO MODALITY UNAVAILABLE - prosodic analysis limited."
+
+**PURPOSE: Unified analysis of HOW it sounds and WHAT is said.**
+
+=== PART A: PROSODIC ANALYSIS (From LISTENING to audio) ===
+
+**YOU MUST LISTEN TO THE AUDIO FOR THIS SECTION.**
+
+1. PITCH ANALYSIS (from audio waveform):
+   - Estimated pitch floor: [Hz or Low/Mid/High]
+   - Estimated pitch ceiling: [Hz or Low/Mid/High]
+   - Pitch variability: MONOTONE / NORMAL / EXPRESSIVE / ERRATIC
+   - Stress-induced pitch spikes: [timestamps] - describe what you HEARD
+
+2. VOCAL FRY / CREAKY VOICE:
+   - Onset timestamps: [when vocal fry begins]
+   - Correlation with topics: [what was being discussed]
+   - Interpretation: Fatigue? Affectation? Stress?
+
+3. TEMPO & RHYTHM (from audio):
+   - Speaking rate estimate: [WPM]
+   - Acceleration points: [timestamps] - subject speeds up
+   - Deceleration points: [timestamps] - subject slows down
+   - Unnatural pauses: [timestamps] - strategic vs processing
+
+4. VOICE QUALITY (from audio):
+   - Baseline quality: Clear / Raspy / Breathy / Tense / Nasal
+   - Quality shifts: [timestamps where voice quality changed]
+   - Throat clearing/swallowing: [timestamps]
+   - Micro-tremors detected: [timestamps] - vocal stress markers
+
+5. RESPONSE LATENCY (from audio):
+   - Measure time between question/prompt and response start
+   - Flag delays >2 seconds with topic context
+
+=== PART B: DOMAIN-SPECIFIC LEXICON (Critical for interpretation) ===
+
+**STEP 1: IDENTIFY SUBJECT'S SUBCULTURE**
+Based on vocabulary, topics, and presentation, identify primary domain:
+- Crypto/Trading: "nuke," "rekt," "moon," "diamond hands," "cope," "ngmi"
+- Gaming/Streaming: "pog," "based," "cringe," "meta," "buff/nerf"
+- Tech/Startup: "ship," "pivot," "scale," "runway," "burn rate"
+- Finance/Business: "leverage," "exposure," "hedge," "position"
+- Military/LEO: "sitrep," "oscar mike," "tango," "copy that"
+- Academic: formal register, citations, hedging language
+- Other: [describe]
+
+**STEP 2: RECALIBRATE EMOTIONAL WEIGHT**
+Words that sound emotionally charged but are NEUTRAL in subject's domain:
+| Word | Literal Meaning | Domain Meaning | Recalibrated Weight |
+| "disgusting" | visceral rejection | bearish chart (trading) | NEUTRAL |
+| "nuke" | destroy | sharp price drop | NEUTRAL |
+| "kill" | end life | perform well | NEUTRAL |
+
+**List domain-specific terms detected and their recalibrated interpretation.**
+
+=== PART C: LINGUISTIC ANALYSIS (What Is Said) ===
+
+6. SOCIOLINGUISTIC PROFILE:
+   - Accent: [Regional/ethnic markers]
+   - Register: FORMAL / CASUAL / TECHNICAL / STREET
+   - Code-switching: [instances of register shifts]
+   - Education markers: [vocabulary level]
+
+7. COGNITIVE LOAD INDICATORS:
+   - Syntax breakdown points: [where sentence structure collapsed]
+   - Specificity→Philosophy pivots: [where facts became vague]
+   - Verbal processing overload: [unusual word choices, repairs]
+
+8. DECEPTION LINGUISTICS:
+   - Minimizing language: [instances with timestamps]
+   - Distancing language: [passive voice, "one might"]
+   - Denial intensifiers: ["I swear," "To be honest"]
+
+9. PRONOUN DRIFT + VELOCITY:
+   Track pronoun shifts AND measure how fast they occur:
+   | Timestamp | Before | After | Trigger | Velocity |
+
+   VELOCITY CLASSIFICATION:
+   - INSTANT (<0.5 sec after negative stimulus): Possibly rehearsed defense
+   - GRADUAL (2-5 sec): Real-time cognitive processing
+   - DELAYED (>5 sec): May indicate genuine reflection
+
+   Example:
+   | 1:23 | "I made the decision" | "The decision was made" | criticism | INSTANT - rehearsed |
+
+=== PART D: GAZE INTERPRETATION (Screen Context) ===
+
+**IF SUBJECT IS IDENTIFIED AS TRADER/ENGINEER/DATA WORKER:**
+Reinterpret "Up-Right" gaze patterns:
+- Standard interpretation: Visual Constructed (fabrication)
+- Domain-adjusted: Data Visualization / Chart Access / Mental calculation
+- Only flag as deceptive if:
+  - Gaze occurs during SIMPLE questions (not data discussion)
+  - Gaze is accompanied by other stress clusters
+
+=== INTEGRATED CREDIBILITY ASSESSMENT ===
+
+AUDIO MODALITY STATUS: AVAILABLE / UNAVAILABLE
+(If unavailable, prosodic analysis is limited to inference - flag this clearly)
+
+DOMAIN-ADJUSTED CREDIBILITY: HIGH / MODERATE / LOW
+
+TOP 3 CONCERN POINTS (after domain adjustment):
+1. [Timestamp] - [What was said] + [How it sounded] = [Interpretation]
+2. ...
+3. ...
+
+PRONOUN DRIFT VELOCITY SUMMARY:
+- Total shifts detected: [count]
+- INSTANT shifts (possible rehearsal): [count]
+- Topics with highest drift: [list]
+
+ALTERNATIVE EXPLANATIONS:
+- [Non-deceptive reasons for observed patterns]"""
+
+
+# =============================================================================
 # PROMPT GROUPS FOR PARALLEL EXECUTION
 # Core prompts + NCI/Chase Hughes behavioral analysis prompts
 # =============================================================================
 
-VISUAL_PROMPTS = {
-    # Core visual analysis
-    'facs': VISUAL_FACS_PROMPT,
-    'archetype': VISUAL_ARCHETYPE_PROMPT,
-    'body_language': VISUAL_BODY_LANGUAGE_PROMPT,
-    'congruence': VISUAL_CONGRUENCE_PROMPT,  # Renamed from 'deception' - neutral framing
-    # Subject identification for case file
+# Stage 0 prompts - run FIRST before main analysis
+STAGE_ZERO_PROMPTS = {
     'subject_identification': SUBJECT_IDENTIFICATION_PROMPT,
-    # NCI/Chase Hughes additions
+    'baseline_establishment': BASELINE_ESTABLISHMENT_PROMPT,
+    'deepfake_detection': DEEPFAKE_DETECTION_PROMPT,
+}
+
+VISUAL_PROMPTS = {
+    # KINESIC EVENT LOG - single source of truth for ALL behavioral observations
+    # Consolidates: FACS, BTE, Body Language, Gestural Mismatch, Gesture Timeline
+    'kinesic_log': KINESIC_EVENT_LOG_PROMPT,
+    # Core visual analysis
+    'archetype': VISUAL_ARCHETYPE_PROMPT,
+    'congruence': VISUAL_CONGRUENCE_PROMPT,
+    # CV-validated blink rate (ground truth)
     'blink_rate': VISUAL_BLINK_RATE_PROMPT,
-    'bte_scoring': VISUAL_BTE_SCORING_PROMPT,
-    'facial_etching': VISUAL_FACIAL_ETCHING_PROMPT,
-    'gestural_mismatch': VISUAL_GESTURAL_MISMATCH_PROMPT,
-    'stress_clusters': VISUAL_STRESS_CLUSTER_PROMPT,
+    # Removed (consolidated into kinesic_log):
+    # - 'facs', 'body_language', 'bte_scoring', 'stress_clusters', 'gestural_mismatch'
+    # Removed (moved to Stage 0):
+    # - 'subject_identification'
+    # Removed (low validity):
+    # - 'facial_etching'
 }
 
 MULTIMODAL_PROMPTS = {
     # Core multimodal analysis
-    'gesture_timeline': MULTIMODAL_GESTURE_TIMELINE_PROMPT,
     'cross_modal_sync': MULTIMODAL_CROSS_MODAL_SYNC_PROMPT,
     'environment': MULTIMODAL_ENVIRONMENT_PROMPT,
     'camera_awareness': MULTIMODAL_CAMERA_AWARENESS_PROMPT,
     # NCI/Chase Hughes additions
     'five_cs': MULTIMODAL_FIVE_CS_PROMPT,
-    'baseline_deviation': MULTIMODAL_BASELINE_DEVIATION_PROMPT,
+    # Removed (consolidated into kinesic_log):
+    # - 'gesture_timeline'
+    # Removed (moved to Stage 0):
+    # - 'baseline_deviation' (now baseline_establishment in Stage 0)
 }
 
 AUDIO_PROMPTS = {
-    # Core audio analysis
-    'voice_characteristics': AUDIO_VOICE_CHARACTERISTICS_PROMPT,
-    'sociolinguistic': AUDIO_SOCIOLINGUISTIC_PROMPT,
-    'credibility': AUDIO_CREDIBILITY_PROMPT,  # Renamed from 'deception_voice' - neutral framing
-    # NCI/Chase Hughes additions
+    # COMBINED audio-linguistic (merges voice + sociolinguistic + credibility)
+    'audio_linguistic': AUDIO_LINGUISTIC_COMBINED_PROMPT,
+    # NCI/Chase Hughes additions (kept separate - distinct analysis types)
     'detail_mountain_valley': AUDIO_DETAIL_MOUNTAIN_VALLEY_PROMPT,
     'minimizing_language': AUDIO_MINIMIZING_LANGUAGE_PROMPT,
     'linguistic_harvesting': AUDIO_LINGUISTIC_HARVESTING_PROMPT,
     # LIWC quantitative analysis
     'liwc': AUDIO_LIWC_PROMPT,
+    # Removed (consolidated into audio_linguistic):
+    # - 'voice_characteristics': Merged into audio_linguistic
+    # - 'sociolinguistic': Merged into audio_linguistic
+    # - 'credibility': Merged into audio_linguistic
 }
 
 SYNTHESIS_PROMPTS = {

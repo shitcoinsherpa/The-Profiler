@@ -24,12 +24,11 @@ except ImportError:
     FASTAPI_AVAILABLE = False
 
 from profiler import BehavioralProfiler, ModelSelection
-from config_manager import ConfigManager
-from database import get_database
-from cache_manager import get_cache
-from prompt_templates import get_template_manager, PROMPT_STAGES
-from pdf_generator import generate_pdf_report, REPORTLAB_AVAILABLE
-from models_config import (
+from config.config_manager import ConfigManager
+from infra.database import get_database
+from infra.cache_manager import get_cache
+from output.pdf_generator import generate_pdf_report, REPORTLAB_AVAILABLE
+from config.models_config import (
     VISION_MODELS,
     AUDIO_MODELS,
     SYNTHESIS_MODELS,
@@ -105,16 +104,6 @@ class ProfileSummary(BaseModel):
     timestamp: str
     processing_time: float
     status: str
-
-
-class TemplateInfo(BaseModel):
-    """Prompt template information."""
-    id: str
-    name: str
-    description: str
-    stage: str
-    is_default: bool
-    is_active: bool
 
 
 class CacheStats(BaseModel):
@@ -222,7 +211,6 @@ Provides programmatic access to:
             "api_key_configured": config.has_api_key(),
             "cache_stats": cache.get_stats(),
             "database_stats": db.get_stats(),
-            "available_stages": list(PROMPT_STAGES.keys()),
             "pdf_export_available": REPORTLAB_AVAILABLE
         }
 
@@ -328,7 +316,7 @@ Provides programmatic access to:
             raise HTTPException(status_code=400, detail="API key not configured")
 
         try:
-            from video_downloader import download_video, is_valid_url
+            from media.video_downloader import download_video, is_valid_url
 
             if not is_valid_url(request.video_url):
                 raise HTTPException(status_code=400, detail="Invalid URL format")
@@ -543,68 +531,6 @@ Provides programmatic access to:
             raise HTTPException(status_code=404, detail="Profile not found")
 
         return {"status": "deleted", "profile_id": profile_id}
-
-    # ========================================================================
-    # Template Endpoints
-    # ========================================================================
-
-    @app.get("/templates", response_model=List[TemplateInfo], tags=["Templates"])
-    async def list_templates(stage: Optional[str] = Query(None)):
-        """List all prompt templates, optionally filtered by stage."""
-        tm = get_template_manager()
-        templates = tm.list_templates(stage=stage)
-
-        return [
-            TemplateInfo(
-                id=t.id,
-                name=t.name,
-                description=t.description,
-                stage=t.stage,
-                is_default=t.is_default,
-                is_active=t.is_active
-            )
-            for t in templates
-        ]
-
-    @app.get("/templates/{template_id}", tags=["Templates"])
-    async def get_template(template_id: str):
-        """Get a specific template including prompt text."""
-        tm = get_template_manager()
-        template = tm.get_template(template_id)
-
-        if not template:
-            raise HTTPException(status_code=404, detail="Template not found")
-
-        return {
-            "id": template.id,
-            "name": template.name,
-            "description": template.description,
-            "stage": template.stage,
-            "prompt_text": template.prompt_text,
-            "is_default": template.is_default,
-            "is_active": template.is_active,
-            "created_at": template.created_at,
-            "updated_at": template.updated_at
-        }
-
-    @app.post("/templates/{stage}/active", tags=["Templates"])
-    async def set_active_template(stage: str, template_id: str = Form(...)):
-        """Set the active template for a stage."""
-        if stage not in PROMPT_STAGES:
-            raise HTTPException(status_code=400, detail=f"Invalid stage: {stage}")
-
-        tm = get_template_manager()
-        success = tm.set_active_template(stage, template_id)
-
-        if not success:
-            raise HTTPException(status_code=400, detail="Failed to set active template")
-
-        return {"status": "success", "stage": stage, "active_template": template_id}
-
-    @app.get("/templates/stages", tags=["Templates"])
-    async def get_stages():
-        """Get available analysis stages."""
-        return PROMPT_STAGES
 
     # ========================================================================
     # Cache Endpoints

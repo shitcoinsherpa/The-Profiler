@@ -20,7 +20,9 @@ from dataclasses import dataclass
 
 
 
-from modular_prompts import (
+from prompts.modular_prompts import (
+
+    STAGE_ZERO_PROMPTS,
 
     VISUAL_PROMPTS,
 
@@ -32,7 +34,7 @@ from modular_prompts import (
 
 )
 
-from signal_collapsing import collapse_analysis_outputs
+from core.signal_collapsing import collapse_analysis_outputs
 
 
 
@@ -542,6 +544,68 @@ class ModularAnalysisExecutor:
 
 
 
+    def run_stage_zero(
+
+        self,
+
+        video: str,
+
+        audio: Optional[str],
+
+        model: str,
+
+        on_complete: Callable[[str, str], None] = None
+
+    ) -> StageResult:
+
+        """
+
+        Run Stage 0: Subject ID, Baseline, and Deepfake Detection.
+
+        This MUST run before other analyses to establish context.
+
+
+
+        Args:
+
+            video: Base64-encoded video
+
+            audio: Optional base64-encoded audio (for deepfake audio analysis)
+
+            model: Vision model ID
+
+            on_complete: Callback for each completed sub-analysis
+
+
+
+        Returns:
+
+            StageResult with Stage 0 analyses
+
+        """
+
+        logger.info(f"Starting Stage 0 (Subject ID, Baseline, Deepfake) with {len(STAGE_ZERO_PROMPTS)} sub-analyses")
+
+
+
+        return self._run_parallel_sub_analyses(
+
+            prompts=STAGE_ZERO_PROMPTS,
+
+            stage='stage_zero',
+
+            model=model,
+
+            video=video,
+
+            audio=audio,
+
+            on_complete=on_complete
+
+        )
+
+
+
     def run_visual_analysis(
 
         self,
@@ -549,6 +613,10 @@ class ModularAnalysisExecutor:
         video: str,
 
         model: str,
+
+        blink_validation: Optional[Dict] = None,
+
+        baseline_context: Optional[str] = None,
 
         on_complete: Callable[[str, str], None] = None
 
@@ -566,6 +634,10 @@ class ModularAnalysisExecutor:
 
             model: Vision model ID
 
+            blink_validation: CV blink detection results to inject into blink_rate prompt
+
+            baseline_context: Baseline establishment results from Stage 0
+
             on_complete: Callback for each completed sub-analysis
 
 
@@ -579,10 +651,37 @@ class ModularAnalysisExecutor:
         logger.info(f"Starting visual analysis with {len(VISUAL_PROMPTS)} sub-analyses (native video)")
 
 
+        # Prepare prompts, injecting baseline context and CV blink data
+        visual_prompts = dict(VISUAL_PROMPTS)  # Copy to avoid modifying original
+
+        # Inject baseline context into kinesic event log prompt
+        if 'kinesic_log' in visual_prompts and '{baseline_context}' in visual_prompts['kinesic_log']:
+            if baseline_context:
+                visual_prompts['kinesic_log'] = visual_prompts['kinesic_log'].format(
+                    baseline_context=baseline_context
+                )
+                logger.info("Baseline context injected into kinesic event log prompt")
+            else:
+                visual_prompts['kinesic_log'] = visual_prompts['kinesic_log'].format(
+                    baseline_context="BASELINE NOT AVAILABLE - Establish baseline from opening 30 seconds."
+                )
+
+        # Inject CV blink data into blink_rate prompt
+        if blink_validation and blink_validation.get('available', False):
+            cv_blink_text = blink_validation.get('formatted_text', 'CV blink data unavailable')
+            if 'blink_rate' in visual_prompts and '{cv_blink_data}' in visual_prompts['blink_rate']:
+                visual_prompts['blink_rate'] = visual_prompts['blink_rate'].format(cv_blink_data=cv_blink_text)
+                logger.info("CV blink data injected into blink_rate prompt for LLM interpretation")
+        else:
+            if 'blink_rate' in visual_prompts and '{cv_blink_data}' in visual_prompts['blink_rate']:
+                fallback_msg = """CV BLINK DETECTION NOT AVAILABLE
+Please estimate blink rates from the video, but note that LLM estimates
+are less accurate than CV measurements. Be conservative with your estimates."""
+                visual_prompts['blink_rate'] = visual_prompts['blink_rate'].format(cv_blink_data=fallback_msg)
 
         return self._run_parallel_sub_analyses(
 
-            prompts=VISUAL_PROMPTS,
+            prompts=visual_prompts,
 
             stage='visual',
 
@@ -721,8 +820,8 @@ IMPORTANT: Correlate vocal patterns with the visual indicators above.
 Flag any timestamps where vocal stress and visual stress DIVERGE or CONVERGE.
 =================================================
 """
-            # Inject into voice characteristics and deception prompts
-            for key in ['voice_characteristics', 'deception_voice', 'sociolinguistic']:
+            # Inject into voice characteristics and credibility prompts
+            for key in ['voice_characteristics', 'credibility', 'sociolinguistic']:
                 if key in audio_prompts:
                     audio_prompts[key] = audio_prompts[key] + context_injection
             logger.info(f"Injected visual context into audio prompts for cross-modal analysis")
@@ -889,6 +988,8 @@ Flag any timestamps where vocal stress and visual stress DIVERGE or CONVERGE.
 
         transcript: Optional[str] = None,
 
+        blink_validation: Optional[Dict] = None,
+
         progress_callback: Callable[[str, int], None] = None,
 
         results_callback: Callable[[str, str], None] = None
@@ -915,6 +1016,8 @@ Flag any timestamps where vocal stress and visual stress DIVERGE or CONVERGE.
 
             synthesis_model: Model for synthesis
 
+            blink_validation: Optional CV-based blink detection results (ground truth)
+
             progress_callback: Progress update callback
 
             results_callback: Results streaming callback
@@ -939,15 +1042,73 @@ Flag any timestamps where vocal stress and visual stress DIVERGE or CONVERGE.
 
 
 
+        # Stage 0: Subject ID, Baseline & Deepfake Detection (MUST RUN FIRST)
+
+        update_progress("🎯 Running Stage 0 (Subject ID, Baseline, Deepfake Detection)...", 2)
+
+        stage_zero_result = self.run_stage_zero(
+
+            video=video,
+
+            audio=audio,
+
+            model=visual_model,
+
+            on_complete=results_callback
+
+        )
+
+        all_results['stage_zero'] = stage_zero_result
+
+
+
+        # Extract baseline context for downstream analyses
+
+        baseline_context = None
+
+        if stage_zero_result.success and 'baseline_establishment' in stage_zero_result.sub_results:
+
+            baseline_result = stage_zero_result.sub_results['baseline_establishment']
+
+            if baseline_result.success:
+
+                baseline_context = baseline_result.result
+
+                logger.info(f"Baseline established ({len(baseline_context)} chars) - will inform subsequent analyses")
+
+
+
+        # Check deepfake detection result
+
+        if stage_zero_result.success and 'deepfake_detection' in stage_zero_result.sub_results:
+
+            deepfake_result = stage_zero_result.sub_results['deepfake_detection']
+
+            if deepfake_result.success and 'LIKELY SYNTHETIC' in deepfake_result.result:
+
+                logger.warning("DEEPFAKE DETECTED - flagging for review")
+
+                # Could abort here, but we continue with warning
+
+
+
+        update_progress(f"✓ Stage 0 complete ({len([r for r in stage_zero_result.sub_results.values() if r.success])}/3 sub-analyses)", 2)
+
+
+
         # Stage 1: Visual Analysis (parallel sub-analyses with native video)
 
-        update_progress("🔍 Running visual sub-analyses (FACS, archetype, body language, deception)...", 3)
+        update_progress("🔍 Running visual sub-analyses (unified behavioral coding, archetype, congruence)...", 3)
 
         visual_result = self.run_visual_analysis(
 
             video=video,
 
             model=visual_model,
+
+            blink_validation=blink_validation,
+
+            baseline_context=baseline_context,
 
             on_complete=results_callback
 
@@ -958,11 +1119,11 @@ Flag any timestamps where vocal stress and visual stress DIVERGE or CONVERGE.
         # Extract visual context for cross-pollination to audio stage
         visual_context = None
         if visual_result.success:
-            deception_result = visual_result.sub_results.get('deception')
+            congruence_result = visual_result.sub_results.get('congruence')
             stress_result = visual_result.sub_results.get('stress_clusters')
             visual_parts = []
-            if deception_result and deception_result.success:
-                visual_parts.append("VISUAL DECEPTION INDICATORS:\n" + deception_result.result[:2000])
+            if congruence_result and congruence_result.success:
+                visual_parts.append("VISUAL CONGRUENCE INDICATORS:\n" + congruence_result.result[:2000])
             if stress_result and stress_result.success:
                 visual_parts.append("STRESS CLUSTERS:\n" + stress_result.result[:1000])
             if visual_parts:
@@ -1055,9 +1216,17 @@ Flag any timestamps where vocal stress and visual stress DIVERGE or CONVERGE.
 
 
 
-        # Combine all previous analyses for synthesis
+        # Combine all previous analyses for synthesis (including Stage 0)
+
+        stage_zero_text = stage_zero_result.combined_text if stage_zero_result.success else "Stage 0 analysis unavailable"
 
         previous_analyses = f"""
+
+=== STAGE 0: SUBJECT ID, BASELINE, AUTHENTICATION ===
+
+{stage_zero_text}
+
+
 
 === VISUAL ANALYSIS ===
 
@@ -1090,6 +1259,27 @@ Flag any timestamps where vocal stress and visual stress DIVERGE or CONVERGE.
                 logger.info(f"Signal Collapsing: {len(collapsed_events)} events collapsed")
         except Exception as sc_err:
             logger.warning(f"Signal collapsing failed: {sc_err}")
+
+        # Inject CV blink validation data (GROUND TRUTH) into synthesis context
+        # This prevents hallucinated LLM blink rates from propagating
+        if blink_validation and blink_validation.get('available', False):
+            cv_blink_text = f"""
+═══════════════════════════════════════════════════════════════
+CV-VALIDATED BLINK DATA (GROUND TRUTH - USE THESE VALUES)
+═══════════════════════════════════════════════════════════════
+The following blink rates were measured by computer vision using
+MediaPipe Face Mesh EAR (Eye Aspect Ratio) algorithm. These are
+ACCURATE measurements of actual eye closures and should OVERRIDE
+any LLM-estimated blink rates which may be hallucinated.
+
+{blink_validation.get('formatted_text', 'CV data unavailable')}
+
+CRITICAL: If LLM blink analysis claims rates significantly higher
+than these CV-measured values, the LLM has hallucinated. Use CV data.
+═══════════════════════════════════════════════════════════════
+"""
+            previous_analyses = cv_blink_text + "\n\n" + previous_analyses
+            logger.info(f"CV blink data injected into synthesis (BPM={blink_validation.get('metrics', {}).get('bpm', 0):.1f})")
 
 
 
@@ -1143,6 +1333,32 @@ def format_modular_results(results: Dict[str, StageResult]) -> Dict[str, str]:
 
 
 
+    # Stage 0 results (Subject ID, Baseline, Deepfake)
+
+    if 'stage_zero' in results:
+
+        stage_zero = results['stage_zero']
+
+        # Extract subject identification for case file
+
+        if 'subject_identification' in stage_zero.sub_results and stage_zero.sub_results['subject_identification'].success:
+
+            formatted['subject_identification'] = stage_zero.sub_results['subject_identification'].result
+
+        # Extract baseline for reference
+
+        if 'baseline_establishment' in stage_zero.sub_results and stage_zero.sub_results['baseline_establishment'].success:
+
+            formatted['baseline'] = stage_zero.sub_results['baseline_establishment'].result
+
+        # Extract deepfake detection for case file
+
+        if 'deepfake_detection' in stage_zero.sub_results and stage_zero.sub_results['deepfake_detection'].success:
+
+            formatted['deepfake_detection'] = stage_zero.sub_results['deepfake_detection'].result
+
+
+
     # Visual/Essence section
 
     if 'visual' in results:
@@ -1153,17 +1369,19 @@ def format_modular_results(results: Dict[str, StageResult]) -> Dict[str, str]:
 
 
 
-        # Extract NCI visual sub-analyses for PDF
+        # Extract kinesic event log (single source of truth for behavioral observations)
 
-        for key in ['blink_rate', 'bte_scoring', 'facial_etching', 'gestural_mismatch', 'stress_clusters']:
+        if 'kinesic_log' in visual.sub_results and visual.sub_results['kinesic_log'].success:
 
-            if key in visual.sub_results and visual.sub_results[key].success:
+            formatted['kinesic_log'] = visual.sub_results['kinesic_log'].result
 
-                formatted[key] = visual.sub_results[key].result
 
-        # Extract subject identification for case file
-        if 'subject_identification' in visual.sub_results and visual.sub_results['subject_identification'].success:
-            formatted['subject_identification'] = visual.sub_results['subject_identification'].result
+
+        # Extract blink rate analysis
+
+        if 'blink_rate' in visual.sub_results and visual.sub_results['blink_rate'].success:
+
+            formatted['blink_rate'] = visual.sub_results['blink_rate'].result
 
 
 

@@ -289,19 +289,3 @@ def collapse_analysis_outputs(
     summary = generate_collapsed_summary(collapsed)
 
     return summary, collapsed
-
-
-# For testing
-if __name__ == "__main__":
-    test_analyses = {
-        "visual_facs": "At 0:32, subject displays AU4 (brow lowerer) indicating concentration.\nAt 1:05, genuine smile detected.",
-        "body_language": "0:32 - Hand moves to face, self-soothing gesture observed.\n1:05 - Open palm gesture suggests openness.",
-        "deception": "Deception marker at 0:32: hand-to-face gesture coincides with verbal claim about profits.",
-        "audio": "Pitch drop at 0:33, possible cognitive load indicator.\n1:04-1:06: Increased speech rate."
-    }
-
-    summary, events = collapse_analysis_outputs(test_analyses)
-    print(summary)
-    print(f"\nTotal collapsed events: {len(events)}")
-    for e in events:
-        print(f"  {e.confidence} @ {e.timestamp_str}: {len(e.sources)} sources")

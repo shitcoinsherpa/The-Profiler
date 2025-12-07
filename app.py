@@ -13,7 +13,7 @@ if hasattr(asyncio, 'WindowsProactorEventLoopPolicy'):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 # Initialize centralized logging before other imports
-from logger import setup_logging
+from infra.logger import setup_logging
 setup_logging(
     level=os.getenv("LOG_LEVEL", "INFO"),
     log_file=True,
@@ -25,8 +25,8 @@ import json
 import tempfile
 from datetime import datetime
 from profiler import BehavioralProfiler, ModelSelection, run_dev_meta_analysis
-from config_manager import ConfigManager
-from models_config import (
+from config.config_manager import ConfigManager
+from config.models_config import (
     ESSENCE_MODEL_CHOICES,
     MULTIMODAL_MODEL_CHOICES,
     AUDIO_MODEL_CHOICES,
@@ -36,14 +36,10 @@ from models_config import (
     DEV_META_MODELS,
     DEFAULT_DEV_META_MODEL
 )
-from video_downloader import download_video, is_valid_url
-from database import get_database
-from pdf_generator import generate_pdf_report, REPORTLAB_AVAILABLE
-from cache_manager import get_cache
-from prompt_templates import (
-    get_template_manager,
-    PROMPT_STAGES
-)
+from media.video_downloader import download_video, is_valid_url
+from infra.database import get_database
+from output.pdf_generator import generate_pdf_report, REPORTLAB_AVAILABLE
+from infra.cache_manager import get_cache
 
 
 # Create FBI-themed Gradio theme based on Glass
@@ -295,6 +291,65 @@ MINIMAL_CSS = """
 /* Monospace output text */
 textarea {
     font-family: 'IBM Plex Mono', 'Courier New', monospace !important;
+}
+
+/* Force scrollability on FBI, Confidence, and Subject ID output boxes */
+#fbi-output-box textarea,
+#confidence-output-box textarea,
+#subject-id-output-box textarea {
+    overflow-y: scroll !important;
+    max-height: 500px !important;
+    min-height: 200px !important;
+}
+
+#fbi-output-box,
+#confidence-output-box,
+#subject-id-output-box {
+    max-height: 550px !important;
+    overflow-y: auto !important;
+}
+
+/* Force scrollability on all textareas in accordions */
+.gradio-accordion textarea {
+    overflow-y: auto !important;
+    max-height: 600px !important;
+}
+
+/* Ensure accordion content can scroll */
+.gradio-accordion .prose {
+    overflow-y: auto !important;
+    max-height: 700px !important;
+}
+
+/* Report textbox containers need scroll */
+.gradio-textbox textarea {
+    overflow-y: scroll !important;
+}
+
+/* Wrap container to ensure scroll works */
+#fbi-output-box .wrap,
+#confidence-output-box .wrap,
+#subject-id-output-box .wrap {
+    max-height: 500px !important;
+    overflow-y: auto !important;
+}
+
+/* Subject ID container - force scrollability */
+#subject-id-container {
+    max-height: 450px !important;
+    overflow-y: auto !important;
+}
+
+#subject-id-container textarea {
+    overflow-y: scroll !important;
+    max-height: 400px !important;
+    min-height: 150px !important;
+    resize: vertical !important;
+}
+
+#subject-id-container .gradio-textbox {
+    max-height: 420px !important;
+    overflow-y: auto !important;
 }
 """
 
@@ -678,7 +733,7 @@ def run_profiling_analysis(video_file, essence_model, multimodal_model, audio_mo
 
         # Get video duration for time estimate (~5.5 min per minute of video)
         try:
-            from frame_extractor import validate_video_file
+            from media.frame_extractor import validate_video_file
             video_meta = validate_video_file(video_file)
             video_duration_min = video_meta.get('duration_seconds', 60) / 60
             estimated_min = int(video_duration_min * 5.5)
@@ -836,7 +891,7 @@ def run_profiling_analysis(video_file, essence_model, multimodal_model, audio_mo
             )
 
             try:
-                from visualizations import (
+                from output.visualizations import (
                     create_confidence_gauge,
                     create_big_five_radar,
                     create_dark_triad_bars,
@@ -946,7 +1001,7 @@ Please check:
 
 # Import visualizations module
 try:
-    from visualizations import (
+    from output.visualizations import (
         create_all_visualizations,
         create_confidence_gauge,
         create_big_five_radar,
@@ -1118,237 +1173,6 @@ def create_interface():
                 outputs=[cache_status]
             )
 
-        # Prompt Templates Section
-        with gr.Accordion("📝 Custom Prompt Templates", open=False):
-            gr.Markdown("""
-            ### Prompt Template Manager
-            Customize the prompts used for each analysis stage. Save your own templates and switch between them.
-            """)
-
-            with gr.Row():
-                with gr.Column(scale=1):
-                    template_stage_select = gr.Dropdown(
-                        choices=[(name, stage) for stage, name in PROMPT_STAGES.items()],
-                        value="essence",
-                        label="Select Analysis Stage",
-                        info="Choose which stage to view/edit prompts for"
-                    )
-
-                    def get_template_dropdown_choices(stage):
-                        tm = get_template_manager()
-                        return tm.get_templates_for_dropdown(stage)
-
-                    template_dropdown = gr.Dropdown(
-                        choices=get_template_dropdown_choices("essence"),
-                        label="Available Templates",
-                        info="Select a template to view/edit",
-                        interactive=True
-                    )
-
-                    with gr.Row():
-                        load_template_btn = gr.Button("📂 Load", size="sm")
-                        set_active_btn = gr.Button("✓ Set Active", size="sm", variant="primary")
-
-                with gr.Column(scale=2):
-                    template_name_input = gr.Textbox(
-                        label="Template Name",
-                        placeholder="Enter a name for your custom template",
-                        max_lines=1
-                    )
-                    template_desc_input = gr.Textbox(
-                        label="Description (optional)",
-                        placeholder="Brief description of this template",
-                        max_lines=1
-                    )
-
-            prompt_editor = gr.Textbox(
-                label="Prompt Text",
-                placeholder="The prompt text will appear here. Edit and save as a new template.",
-                lines=15,
-                max_lines=30,
-                interactive=True
-            )
-
-            template_status = gr.Textbox(
-                label="",
-                value="Select a stage and template to begin editing.",
-                interactive=False,
-                show_label=False,
-                max_lines=2
-            )
-
-            with gr.Row():
-                save_template_btn = gr.Button("💾 Save as New Template", variant="primary")
-                update_template_btn = gr.Button("🔄 Update Template", variant="secondary")
-                delete_template_btn = gr.Button("🗑️ Delete Template", variant="stop")
-                reset_default_btn = gr.Button("↩️ Reset to Default", variant="secondary")
-
-            # Template management event handlers
-            def update_templates_for_stage(stage):
-                """Update template dropdown when stage changes."""
-                tm = get_template_manager()
-                choices = tm.get_templates_for_dropdown(stage)
-                # Load the active template's prompt
-                active_prompt = tm.get_active_prompt(stage)
-                active_id = tm.active_templates.get(stage, "default")
-                return (
-                    gr.Dropdown(choices=choices, value=active_id if any(c[1] == active_id for c in choices) else choices[0][1] if choices else None),
-                    active_prompt,
-                    f"Showing active template for {PROMPT_STAGES.get(stage, stage)}"
-                )
-
-            template_stage_select.change(
-                fn=update_templates_for_stage,
-                inputs=[template_stage_select],
-                outputs=[template_dropdown, prompt_editor, template_status]
-            )
-
-            def load_template_content(template_id, stage):
-                """Load a template's content."""
-                if not template_id:
-                    return "", "", "", "Select a template to load"
-
-                tm = get_template_manager()
-                template = tm.get_template(template_id)
-
-                if not template:
-                    # It might be "default" - get default prompt
-                    if template_id == "default" or template_id.startswith("default_"):
-                        return "Default", "", tm.get_default_prompt(stage), "Loaded default template (read-only)"
-                    return "", "", "", "Template not found"
-
-                return (
-                    template.name if not template.is_default else "Default",
-                    template.description,
-                    template.prompt_text,
-                    f"Loaded: {template.name}" + (" [ACTIVE]" if template.is_active else "")
-                )
-
-            load_template_btn.click(
-                fn=load_template_content,
-                inputs=[template_dropdown, template_stage_select],
-                outputs=[template_name_input, template_desc_input, prompt_editor, template_status]
-            )
-
-            def set_template_active(template_id, stage):
-                """Set a template as active for its stage."""
-                if not template_id:
-                    return "No template selected"
-
-                tm = get_template_manager()
-                success = tm.set_active_template(stage, template_id)
-
-                if success:
-                    template = tm.get_template(template_id)
-                    name = template.name if template else template_id
-                    return f"✓ Set '{name}' as active for {PROMPT_STAGES.get(stage, stage)}"
-                return "Failed to set active template"
-
-            set_active_btn.click(
-                fn=set_template_active,
-                inputs=[template_dropdown, template_stage_select],
-                outputs=[template_status]
-            )
-
-            def save_new_template(name, description, prompt_text, stage):
-                """Save a new custom template."""
-                if not name or not name.strip():
-                    return "Error: Template name is required", gr.Dropdown()
-
-                if not prompt_text or not prompt_text.strip():
-                    return "Error: Prompt text cannot be empty", gr.Dropdown()
-
-                tm = get_template_manager()
-                success, message, template = tm.save_template(
-                    name=name.strip(),
-                    stage=stage,
-                    prompt_text=prompt_text.strip(),
-                    description=description
-                )
-
-                # Refresh dropdown
-                new_choices = tm.get_templates_for_dropdown(stage)
-
-                if success and template:
-                    return f"✓ {message}", gr.Dropdown(choices=new_choices, value=template.id)
-                return f"Error: {message}", gr.Dropdown(choices=new_choices)
-
-            save_template_btn.click(
-                fn=save_new_template,
-                inputs=[template_name_input, template_desc_input, prompt_editor, template_stage_select],
-                outputs=[template_status, template_dropdown]
-            )
-
-            def update_existing_template(template_id, name, description, prompt_text, stage):
-                """Update an existing template."""
-                if not template_id:
-                    return "No template selected"
-
-                tm = get_template_manager()
-                template = tm.get_template(template_id)
-
-                if not template:
-                    return "Template not found"
-
-                if template.is_default:
-                    return "Cannot modify default templates. Save as a new template instead."
-
-                success, message, _ = tm.save_template(
-                    name=name.strip() if name else template.name,
-                    stage=stage,
-                    prompt_text=prompt_text.strip(),
-                    description=description,
-                    template_id=template_id
-                )
-
-                return f"✓ {message}" if success else f"Error: {message}"
-
-            update_template_btn.click(
-                fn=update_existing_template,
-                inputs=[template_dropdown, template_name_input, template_desc_input, prompt_editor, template_stage_select],
-                outputs=[template_status]
-            )
-
-            def delete_template_handler(template_id, stage):
-                """Delete a custom template."""
-                if not template_id:
-                    return "No template selected", gr.Dropdown()
-
-                tm = get_template_manager()
-                success, message = tm.delete_template(template_id)
-
-                new_choices = tm.get_templates_for_dropdown(stage)
-
-                if success:
-                    return f"✓ {message}", gr.Dropdown(choices=new_choices, value=new_choices[0][1] if new_choices else None)
-                return f"Error: {message}", gr.Dropdown(choices=new_choices)
-
-            delete_template_btn.click(
-                fn=delete_template_handler,
-                inputs=[template_dropdown, template_stage_select],
-                outputs=[template_status, template_dropdown]
-            )
-
-            def reset_to_default_handler(stage):
-                """Reset stage to default prompt."""
-                tm = get_template_manager()
-                tm.reset_to_defaults(stage)
-
-                default_prompt = tm.get_default_prompt(stage)
-                new_choices = tm.get_templates_for_dropdown(stage)
-
-                return (
-                    f"✓ Reset {PROMPT_STAGES.get(stage, stage)} to default prompt",
-                    default_prompt,
-                    gr.Dropdown(choices=new_choices, value=f"default_{stage}")
-                )
-
-            reset_default_btn.click(
-                fn=reset_to_default_handler,
-                inputs=[template_stage_select],
-                outputs=[template_status, prompt_editor, template_dropdown]
-            )
-
         # Input Section
         with gr.Row():
             with gr.Column(scale=2):
@@ -1423,7 +1247,7 @@ def create_interface():
                 return None, '<div style="color: #6b7280; text-align: center; padding: 20px;">Upload a video to see preview and metadata</div>'
 
             try:
-                from frame_extractor import validate_video_file
+                from media.frame_extractor import validate_video_file
                 metadata = validate_video_file(video_file)
 
                 duration = metadata.get('duration_seconds', 0)
@@ -1598,14 +1422,16 @@ def create_interface():
                             type="pil",
                             interactive=False
                         )
-                    with gr.Column(scale=3):
+                    with gr.Column(scale=3, elem_id="subject-id-container"):
                         subject_id_output = gr.Textbox(
                             label="Subject Identification",
                             value="Subject identification will appear here after analysis...",
-                            lines=10,
-                            max_lines=20,
+                            lines=20,
+                            max_lines=100,
+                            autoscroll=False,
                             interactive=False,
-                            show_copy_button=True
+                            show_copy_button=True,
+                            elem_id="subject-id-output-box"
                         )
 
                 # Spacer before visualizations
@@ -1660,17 +1486,23 @@ def create_interface():
                         label="FBI-Style Psychological Assessment & Recommendations",
                         value="Results will appear here after analysis...",
                         lines=30,
+                        max_lines=100,
+                        autoscroll=False,
                         interactive=False,
-                        show_copy_button=True
+                        show_copy_button=True,
+                        elem_id="fbi-output-box"
                     )
 
                 with gr.Accordion("📊 Confidence Details", open=False):
                     confidence_output = gr.Textbox(
                         label="Analysis Confidence Assessment",
                         value="Confidence assessment will appear here after analysis...",
-                        lines=15,
+                        lines=20,
+                        max_lines=60,
+                        autoscroll=False,
                         interactive=False,
-                        show_copy_button=True
+                        show_copy_button=True,
+                        elem_id="confidence-output-box"
                     )
 
                 with gr.Accordion("🔧 Complete JSON Data", open=False):
