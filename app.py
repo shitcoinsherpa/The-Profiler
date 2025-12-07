@@ -1865,7 +1865,7 @@ def create_interface():
         ---
         **Processing Pipeline:** Keyframe Extraction → Audio Analysis → Visual Essence → Multimodal Behavioral → Linguistic Analysis → FBI Synthesis
 
-        *Powered by OpenRouter API • ~1-2 min processing time*
+        *Powered by OpenRouter API • ~15-30 sec processing time*
         """)
 
         # Event handlers for Settings
