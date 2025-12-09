@@ -17,10 +17,6 @@ Upload a video file (or paste a YouTube/Twitter/TikTok URL) and the system runs 
 | 5 | **Voice** | Examine vocal patterns, accent, paralinguistic markers |
 | 6 | **Synth** | Combine all analyses into final FBI-style behavioral profile |
 
-## Demo Video
-
-(https://github.com/shitcoinsherpa/The-Profiler/blob/main/screenshots/SBF-analyze-web.mp4)
-
 ## Screenshots
 
 ### Main Interface
