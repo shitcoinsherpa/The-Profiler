@@ -19,7 +19,7 @@ Upload a video file (or paste a YouTube/Twitter/TikTok URL) and the system runs 
 
 ## Demo Video
 
-[https://github.com/user-attachments/assets/c3c3fdb4-9e44-4236-a38d-f485360005bb](https://github.com/shitcoinsherpa/The-Profiler/blob/main/screenshots/analysis2.png)
+(https://github.com/shitcoinsherpa/The-Profiler/blob/main/screenshots/analysis2.png)](https://github.com/shitcoinsherpa/The-Profiler/blob/main/screenshots/SBF-analyze-web.mp4)
 
 ## Screenshots
 
