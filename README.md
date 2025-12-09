@@ -19,7 +19,11 @@ Upload a video file (or paste a YouTube/Twitter/TikTok URL) and the system runs 
 
 ## Demo Video
 
-<video src="screenshots/SBF-analyze.mp4" controls width="100%"></video>
+
+
+https://github.com/user-attachments/assets/c3c3fdb4-9e44-4236-a38d-f485360005bb
+
+
 
 ## Screenshots
 
