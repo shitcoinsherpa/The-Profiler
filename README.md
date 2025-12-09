@@ -19,7 +19,7 @@ Upload a video file (or paste a YouTube/Twitter/TikTok URL) and the system runs 
 
 ## Demo Video
 
-https://github.com/shitcoinsherpa/The-Profiler/raw/main/screenshots/SBF-analyze.mp4
+<video src="screenshots/SBF-analyze.mp4" controls width="100%"></video>
 
 ## Screenshots
 
