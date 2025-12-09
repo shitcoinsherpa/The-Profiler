@@ -61,31 +61,9 @@ git clone https://github.com/shitcoinsherpa/The-Profiler.git
 cd The-Profiler
 ```
 
-### Step 2: Install FFmpeg
+### Step 2: Run Setup
 
-FFmpeg is required for extracting audio from videos.
-
-**Download:** Go to [https://www.gyan.dev/ffmpeg/builds/](https://www.gyan.dev/ffmpeg/builds/)
-
-1. Download `ffmpeg-git-essentials.7z` (or `ffmpeg-git-full.7z`)
-2. Extract the archive using [7-Zip](https://www.7-zip.org/)
-3. Navigate into the extracted folder, then into the `bin` folder
-4. Copy `ffmpeg.exe` to the **root of The-Profiler folder** (same folder as `app.py`)
-
-Your folder should look like:
-```
-The-Profiler/
-├── app.py
-├── ffmpeg.exe      <-- Place here
-├── requirements.txt
-├── setup.bat
-├── run.bat
-└── ...
-```
-
-**Alternative:** Add FFmpeg to your system PATH instead.
-
-### Step 3: Run Setup
+The setup script will automatically download FFmpeg and install all dependencies.
 
 **Windows:**
 ```batch
@@ -98,7 +76,7 @@ chmod +x setup.sh run.sh
 ./setup.sh
 ```
 
-### Step 4: Start the App
+### Step 3: Start the App
 
 **Windows:**
 ```batch
@@ -112,7 +90,7 @@ run.bat
 
 The app will open in your browser at `http://localhost:7860`
 
-### Step 5: Configure API Key
+### Step 4: Configure API Key
 
 1. In the web UI, expand **Settings & Configuration**
 2. Paste your OpenRouter API key
@@ -183,7 +161,7 @@ In the **Custom Prompt Templates** accordion, you can:
 
 | Issue | Solution |
 |-------|----------|
-| "FFmpeg not found" | Make sure `ffmpeg.exe` is in the project folder or in system PATH |
+| "FFmpeg not found" | Run `setup.bat` again, or manually download from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) and place `ffmpeg.exe` in the project folder |
 | "API key invalid" | Verify your key at [openrouter.ai/keys](https://openrouter.ai/keys) and re-enter |
 | "Video too long/large" | Videos must be 10-300 seconds, under 100MB |
 | Analysis fails midway | Check OpenRouter credits; some models have usage limits |

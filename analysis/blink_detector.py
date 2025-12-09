@@ -91,7 +91,9 @@ def detect_blinks(
     video_path: str,
     ear_threshold: float = 0.25,  # Raised from 0.21 - more permissive for partial blinks
     min_blink_frames: int = 1,    # Lowered from 2 - catch quick blinks
-    sample_rate: int = 1  # Process every Nth frame for speed
+    sample_rate: int = 1,  # Process every Nth frame for speed
+    interview_mode: bool = False,  # If True, track multiple faces and select by position
+    suspect_position: str = "auto"  # "auto", "left", "right", "fullscreen"
 ) -> Optional[BlinkAnalysis]:
     """
     Detect blinks in a video using MediaPipe Face Mesh.
@@ -101,6 +103,8 @@ def detect_blinks(
         ear_threshold: EAR below this = eye closed (default 0.21)
         min_blink_frames: Minimum consecutive frames for valid blink
         sample_rate: Process every Nth frame (1 = all frames)
+        interview_mode: If True, track up to 2 faces and select based on position
+        suspect_position: Which face to track - "left", "right", "auto", "fullscreen"
 
     Returns:
         BlinkAnalysis with all blink metrics, or None if detection fails
@@ -124,13 +128,22 @@ def detect_blinks(
             return None
 
         # Initialize MediaPipe Face Mesh
+        # In interview mode, track up to 2 faces; otherwise just 1
         mp_face_mesh = mp.solutions.face_mesh
+        max_faces = 2 if interview_mode else 1
         face_mesh = mp_face_mesh.FaceMesh(
-            max_num_faces=1,
+            max_num_faces=max_faces,
             refine_landmarks=True,
             min_detection_confidence=0.5,
             min_tracking_confidence=0.5
         )
+
+        # Get frame width for position-based face selection
+        frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        frame_center_x = frame_width / 2
+
+        if interview_mode:
+            logger.info(f"Interview mode: tracking up to {max_faces} faces, selecting {suspect_position} position")
 
         blink_events = []
         ear_timeline = []
@@ -162,7 +175,39 @@ def detect_blinks(
             results = face_mesh.process(rgb_frame)
 
             if results.multi_face_landmarks:
-                landmarks = results.multi_face_landmarks[0].landmark
+                # Select the correct face based on interview mode settings
+                selected_landmarks = None
+
+                if not interview_mode or suspect_position == "fullscreen" or len(results.multi_face_landmarks) == 1:
+                    # Single face mode or only one face detected - use it
+                    selected_landmarks = results.multi_face_landmarks[0].landmark
+                elif len(results.multi_face_landmarks) >= 2:
+                    # Multiple faces detected - select based on position
+                    face_positions = []
+                    for i, face_landmarks in enumerate(results.multi_face_landmarks):
+                        # Calculate face center X position (average of all landmark X coords)
+                        x_coords = [lm.x for lm in face_landmarks.landmark]
+                        face_center_x_norm = sum(x_coords) / len(x_coords)
+                        face_center_x_abs = face_center_x_norm * frame_width
+                        face_positions.append((i, face_center_x_abs, face_landmarks.landmark))
+
+                    # Sort faces by X position (left to right)
+                    face_positions.sort(key=lambda x: x[1])
+
+                    if suspect_position == "left":
+                        # Select leftmost face
+                        selected_landmarks = face_positions[0][2]
+                    elif suspect_position == "right":
+                        # Select rightmost face
+                        selected_landmarks = face_positions[-1][2]
+                    else:  # "auto" - select face that appears more often on camera (likely the interviewee)
+                        # Default to rightmost in interview setting (often the interviewee)
+                        selected_landmarks = face_positions[-1][2]
+
+                if selected_landmarks is None:
+                    continue
+
+                landmarks = selected_landmarks
 
                 # Calculate EAR for both eyes
                 left_ear = calculate_ear(landmarks, LEFT_EYE)
@@ -496,9 +541,18 @@ All blink windows were within normal range."""
     return '\n'.join(lines)
 
 
-def get_blink_metrics_for_prompt(video_path: str) -> Dict:
+def get_blink_metrics_for_prompt(
+    video_path: str,
+    interview_mode: bool = False,
+    suspect_position: str = "auto"
+) -> Dict:
     """
     Get blink metrics formatted for passing to LLM prompts.
+
+    Args:
+        video_path: Path to video file
+        interview_mode: If True, track multiple faces and select by position
+        suspect_position: Which face to track - "left", "right", "auto", "fullscreen"
 
     Returns dict with:
     - formatted_text: Human-readable summary
@@ -513,7 +567,11 @@ def get_blink_metrics_for_prompt(video_path: str) -> Dict:
         }
 
     try:
-        analysis = detect_blinks(video_path)
+        analysis = detect_blinks(
+            video_path,
+            interview_mode=interview_mode,
+            suspect_position=suspect_position
+        )
         if analysis:
             return {
                 'available': True,

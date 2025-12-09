@@ -15,9 +15,9 @@ def extract_frames_from_video(
     num_frames: int = 5,
     target_size: int = 768,
     jpeg_quality: int = 85,
-    max_file_size_mb: float = 100.0,
+    max_file_size_mb: float = 250.0,
     min_duration_sec: float = 10.0,
-    max_duration_sec: float = 300.0
+    max_duration_sec: float = 600.0
 ) -> Tuple[List[str], dict]:
     """
     Extract evenly-spaced frames from video and return as base64-encoded JPEG strings.

@@ -1,6 +1,6 @@
 @echo off
 REM FBI Behavioral Profiling System - Setup Script
-REM This script creates a virtual environment and installs dependencies
+REM This script creates a virtual environment, installs dependencies, and downloads ffmpeg
 
 echo ======================================================================
 echo FBI BEHAVIORAL PROFILING SYSTEM - SETUP
@@ -19,12 +19,34 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo [1/5] Checking Python version...
+echo [1/6] Checking Python version...
 python --version
 echo.
 
+REM Download FFmpeg if not present
+echo [2/6] Checking for FFmpeg...
+if exist ffmpeg.exe (
+    echo FFmpeg already present. Skipping download.
+) else (
+    echo Downloading FFmpeg from gyan.dev...
+    echo This may take a minute...
+    
+    REM Use PowerShell to download and extract ffmpeg
+    powershell -ExecutionPolicy Bypass -Command "$ProgressPreference = 'SilentlyContinue'; $url = 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip'; $zip = 'ffmpeg-temp.zip'; Write-Host 'Downloading...'; Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing; Write-Host 'Extracting...'; Expand-Archive -Path $zip -DestinationPath 'ffmpeg-temp' -Force; $exe = Get-ChildItem -Path 'ffmpeg-temp' -Recurse -Filter 'ffmpeg.exe' | Select-Object -First 1; if ($exe) { Copy-Item $exe.FullName -Destination 'ffmpeg.exe'; Write-Host 'Done.' } else { Write-Host 'ERROR: ffmpeg.exe not found'; exit 1 }; Remove-Item $zip -Force -ErrorAction SilentlyContinue; Remove-Item 'ffmpeg-temp' -Recurse -Force -ErrorAction SilentlyContinue"
+    
+    if not exist ffmpeg.exe (
+        echo ERROR: Failed to download or extract FFmpeg
+        echo Please download manually from: https://www.gyan.dev/ffmpeg/builds/
+        echo Download ffmpeg-release-essentials.zip, extract, and copy ffmpeg.exe here.
+        pause
+        exit /b 1
+    )
+    echo FFmpeg downloaded and installed successfully.
+)
+echo.
+
 REM Create virtual environment
-echo [2/5] Creating virtual environment...
+echo [3/6] Creating virtual environment...
 if exist venv (
     echo Virtual environment already exists. Skipping creation.
 ) else (
@@ -39,7 +61,7 @@ if exist venv (
 echo.
 
 REM Activate virtual environment
-echo [3/5] Activating virtual environment...
+echo [4/6] Activating virtual environment...
 call venv\Scripts\activate.bat
 if errorlevel 1 (
     echo ERROR: Failed to activate virtual environment
@@ -50,13 +72,13 @@ echo Virtual environment activated.
 echo.
 
 REM Upgrade pip
-echo [4/5] Upgrading pip...
+echo [5/6] Upgrading pip...
 python -m pip install --upgrade pip --quiet
 echo Pip upgraded successfully.
 echo.
 
 REM Install dependencies
-echo [5/5] Installing dependencies...
+echo [6/6] Installing dependencies...
 pip install -r requirements.txt
 if errorlevel 1 (
     echo ERROR: Failed to install dependencies

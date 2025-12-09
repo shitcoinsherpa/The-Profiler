@@ -8,6 +8,7 @@ import time
 import threading
 import logging
 from typing import List, Optional
+import httpx
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -132,6 +133,31 @@ def get_rate_limiter(requests_per_minute: int = 60) -> RateLimiter:
     return _rate_limiter
 
 
+
+
+def _create_http_client() -> httpx.Client:
+    """
+    Create an httpx client with keepalive and connection pooling configured.
+    This prevents connection reset errors on Windows.
+    """
+    return httpx.Client(
+        # HTTP/2 for better connection multiplexing
+        http2=True,
+        # Connection pool limits
+        limits=httpx.Limits(
+            max_keepalive_connections=10,
+            max_connections=20,
+            keepalive_expiry=30.0  # Keep connections alive for 30 seconds
+        ),
+        # Longer timeout for large payloads
+        timeout=httpx.Timeout(
+            connect=30.0,
+            read=300.0,  # 5 minutes for large video responses
+            write=300.0,
+            pool=30.0
+        )
+    )
+
 class OpenRouterClient:
     """
     Client for interacting with OpenRouter API.
@@ -166,12 +192,16 @@ class OpenRouterClient:
                 "Provide api_key parameter or set OPENROUTER_API_KEY environment variable."
             )
 
-        # Initialize OpenAI client with OpenRouter base URL
+        # Create custom HTTP client with keepalive configured
+        self._http_client = _create_http_client()
+
+        # Initialize OpenAI client with OpenRouter base URL and custom HTTP client
         # max_retries handles transient 503 errors from OpenRouter/Cloudflare
         self.client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=self.api_key,
-            max_retries=max_retries
+            max_retries=max_retries,
+            http_client=self._http_client
         )
 
         # Rate limiting
@@ -180,6 +210,14 @@ class OpenRouterClient:
             self.rate_limiter = get_rate_limiter(requests_per_minute)
         else:
             self.rate_limiter = None
+
+    def __del__(self):
+        """Clean up HTTP client on deletion."""
+        if hasattr(self, '_http_client') and self._http_client:
+            try:
+                self._http_client.close()
+            except Exception:
+                pass
 
     def _apply_rate_limit(self, timeout: float = 60.0) -> bool:
         """

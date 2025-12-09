@@ -670,7 +670,7 @@ def get_database_stats():
     return stats_html
 
 
-def run_profiling_analysis(video_file, essence_model, multimodal_model, audio_model, liwc_model, synthesis_model, subject_name, subject_notes, use_cache):
+def run_profiling_analysis(video_file, essence_model, multimodal_model, audio_model, liwc_model, synthesis_model, subject_name, subject_notes, use_cache, interview_mode, suspect_position, suspect_speaker):
     """
     Main function to run profiling analysis on uploaded video.
     Yields progress updates and final results.
@@ -685,6 +685,9 @@ def run_profiling_analysis(video_file, essence_model, multimodal_model, audio_mo
         subject_name: Name of the subject being profiled
         subject_notes: Optional notes about the subject
         use_cache: Whether to use cached results
+        interview_mode: Whether to enable interview mode (focus on suspect only)
+        suspect_position: Position of suspect in frame ("auto", "left", "right", "fullscreen")
+        suspect_speaker: Speaker label for suspect in transcript ("auto", "Speaker 1", etc.)
 
     Yields:
         Tuple of (progress_html, status, essence, multimodal, audio, liwc, fbi, nci, transcript, confidence, json_output, json_file)
@@ -790,7 +793,10 @@ def run_profiling_analysis(video_file, essence_model, multimodal_model, audio_mo
                     video_path=video_file,
                     progress_callback=update_progress,
                     results_callback=update_results,
-                    use_cache=use_cache
+                    use_cache=use_cache,
+                    interview_mode=interview_mode,
+                    suspect_position=suspect_position,
+                    suspect_speaker=suspect_speaker
                 )
             except Exception as e:
                 error_holder[0] = e
@@ -986,8 +992,8 @@ Error: {str(e)}
 
 Please check:
 1. Video file is valid (.mp4, .mov, .avi, .webm)
-2. Video duration is 10-300 seconds (5 minutes max)
-3. File size is under 100MB
+2. Video duration is 10-600 seconds (10 minutes max)
+3. File size is under 250MB
 4. OPENROUTER_API_KEY is set in .env file
 5. You have active API credits"""
 
@@ -1137,6 +1143,54 @@ def create_interface():
 
             gr.Markdown("---")
             gr.Markdown("""
+            ### Interview Mode
+            Enable this when analyzing interview/interrogation clips to focus analysis on the **suspect only**.
+            The interviewer's questions will be captured for context, but their behavior will NOT be analyzed.
+            """)
+
+            with gr.Row():
+                interview_mode_checkbox = gr.Checkbox(
+                    label="Interview Mode",
+                    value=False,
+                    info="Focus analysis on suspect/interviewee only, ignore interviewer"
+                )
+
+            with gr.Row(visible=True) as interview_options_row:
+                suspect_position_dropdown = gr.Dropdown(
+                    choices=[
+                        ("Auto-detect", "auto"),
+                        ("Left side of frame", "left"),
+                        ("Right side of frame", "right"),
+                        ("Full screen (suspect only visible)", "fullscreen")
+                    ],
+                    value="auto",
+                    label="Suspect Position",
+                    info="Where is the suspect located in split-screen frames?",
+                    scale=2
+                )
+                suspect_speaker_dropdown = gr.Dropdown(
+                    choices=[
+                        ("Auto-detect from context", "auto"),
+                        ("Speaker 1", "Speaker 1"),
+                        ("Speaker 2", "Speaker 2"),
+                        ("Speaker 3", "Speaker 3")
+                    ],
+                    value="auto",
+                    label="Suspect Speaker Label",
+                    info="Which speaker label corresponds to the suspect in transcript?",
+                    scale=2
+                )
+
+            gr.Markdown("""
+            **Interview Mode Features:**
+            - Captures interviewer questions as **context** for understanding responses
+            - Analyzes **only the suspect's** behavior, voice, and speech patterns
+            - Blink detection focuses on the suspect's face position
+            - LIWC/linguistic analysis runs on suspect's speech only
+            """)
+
+            gr.Markdown("---")
+            gr.Markdown("""
             ### Cache Settings
             Cache analysis results to avoid redundant API calls when re-analyzing the same video.
             """)
@@ -1182,7 +1236,7 @@ def create_interface():
                     with gr.Tab("Upload File"):
                         video_input = gr.File(
                             label="Subject Video File",
-                            file_types=[".mp4", ".mov", ".avi", ".webm"],
+                            file_types=[".mp4", ".mov", ".avi", ".webm", ".mkv"],
                             type="filepath"
                         )
 
@@ -1205,8 +1259,9 @@ def create_interface():
                 gr.Markdown("""
                 **Requirements:**
                 - Formats: .mp4, .mov, .avi, .webm
-                - Duration: 10-300 seconds (5 minutes max)
-                - Max size: 100MB
+                - Duration: 10-600 seconds (10 minutes max)
+                - Max size: 250MB
+                - **Note:** Even 2-minute videos can take 15+ minutes to process
                 - Clear view of subject
                 """)
 
@@ -1271,7 +1326,7 @@ def create_interface():
                         <div style="color: #4a9eff;">{size_mb:.2f} MB</div>
                     </div>
                     <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #2d3a5f;">
-                        {"<span style='color: #22c55e;'>✓ Video meets requirements</span>" if 10 <= duration <= 300 and size_mb <= 100 else "<span style='color: #ef4444;'>⚠ Video may not meet requirements</span>"}
+                        {"<span style='color: #22c55e;'>✓ Video meets requirements</span>" if 10 <= duration <= 600 and size_mb <= 250 else "<span style='color: #ef4444;'>⚠ Video may not meet requirements</span>"}
                     </div>
                 </div>
                 '''
@@ -1298,8 +1353,8 @@ def create_interface():
                 # Download the video
                 file_path, metadata = download_video(
                     url,
-                    max_duration=300,
-                    max_filesize_mb=100
+                    max_duration=600,
+                    max_filesize_mb=250
                 )
 
                 # Create metadata display
@@ -1931,7 +1986,10 @@ def create_interface():
                 synthesis_model_dropdown,
                 subject_name_input,
                 subject_notes_input,
-                use_cache_checkbox
+                use_cache_checkbox,
+                interview_mode_checkbox,
+                suspect_position_dropdown,
+                suspect_speaker_dropdown
             ],
             outputs=analysis_outputs
         )
@@ -2018,6 +2076,24 @@ if __name__ == "__main__":
 
     port = find_available_port()
     print(f"🌐 Starting on port {port}")
+
+    # Suppress benign Windows asyncio connection reset errors
+    import sys
+    if sys.platform == 'win32':
+        import asyncio
+        import logging as _logging
+
+        # Filter out ConnectionResetError from asyncio on Windows
+        class WindowsProactorFilter(_logging.Filter):
+            def filter(self, record):
+                # Suppress "ConnectionResetError: [WinError 10054]" from asyncio
+                if record.name == 'asyncio' and 'ConnectionResetError' in str(record.msg):
+                    return False
+                if record.name == 'asyncio' and '10054' in str(record.msg):
+                    return False
+                return True
+
+        _logging.getLogger('asyncio').addFilter(WindowsProactorFilter())
 
     app.launch(
         server_name="localhost",

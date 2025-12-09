@@ -18,14 +18,14 @@ class VideoSettings(BaseModel):
         description="Minimum video duration in seconds"
     )
     max_duration_seconds: int = Field(
-        default=300,
-        le=600,
-        description="Maximum video duration in seconds"
+        default=600,
+        le=900,
+        description="Maximum video duration in seconds (10 min default, Gemini supports up to 1 hour)"
     )
     max_file_size_mb: int = Field(
-        default=100,
+        default=250,
         le=500,
-        description="Maximum file size in megabytes"
+        description="Maximum file size in megabytes (250MB default, Gemini supports larger)"
     )
     supported_formats: List[str] = Field(
         default=[".mp4", ".mov", ".avi", ".webm", ".mkv"],

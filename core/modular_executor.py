@@ -12,6 +12,8 @@ import logging
 
 import time
 
+import random
+
 from typing import Dict, List, Optional, Callable, Any
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -110,6 +112,13 @@ class ModularAnalysisExecutor:
 
 
 
+    # Retry configuration for API resilience
+    DEFAULT_MAX_RETRIES = 10  # Increased from 3 for API outages
+    SERVER_ERROR_CODES = ['500', '502', '503', '504', 'cloudflare', 'timeout', 'rate_limit']
+    BASE_BACKOFF_SECONDS = 2.0
+    MAX_BACKOFF_SECONDS = 120.0  # Cap at 2 minutes between retries
+    SERVER_ERROR_BACKOFF_MULTIPLIER = 3.0  # Longer waits for server errors
+
     def __init__(
 
         self,
@@ -122,7 +131,11 @@ class ModularAnalysisExecutor:
 
         max_tokens_synthesis: int = 16000,
 
-        temperature: float = 0.7
+        temperature: float = 0.7,
+
+        max_retries: int = None,
+
+        persistent_retry: bool = True
 
     ):
 
@@ -144,6 +157,10 @@ class ModularAnalysisExecutor:
 
             temperature: Model temperature setting
 
+            max_retries: Max retry attempts per sub-analysis (default: 10)
+
+            persistent_retry: If True, retry failed sub-analyses at stage level
+
         """
 
         self.client = api_client
@@ -156,7 +173,35 @@ class ModularAnalysisExecutor:
 
         self.temperature = temperature
 
+        self.max_retries = max_retries or self.DEFAULT_MAX_RETRIES
 
+        self.persistent_retry = persistent_retry
+
+
+
+    def _is_server_error(self, error: Exception) -> bool:
+        """Check if error is a server-side issue that warrants extended retry."""
+        error_str = str(error).lower()
+        for code in self.SERVER_ERROR_CODES:
+            if code in error_str:
+                return True
+        return False
+
+    def _calculate_backoff(self, attempt: int, is_server_error: bool) -> float:
+        """Calculate backoff time with exponential increase and jitter."""
+        base = self.BASE_BACKOFF_SECONDS
+        if is_server_error:
+            base *= self.SERVER_ERROR_BACKOFF_MULTIPLIER
+
+        # Exponential backoff: base * 2^attempt
+        backoff = base * (2 ** attempt)
+
+        # Add jitter (±25%) to prevent thundering herd
+        jitter = backoff * 0.25 * (2 * random.random() - 1)
+        backoff += jitter
+
+        # Cap at maximum
+        return min(backoff, self.MAX_BACKOFF_SECONDS)
 
     def _run_sub_analysis(
 
@@ -174,13 +219,13 @@ class ModularAnalysisExecutor:
 
         audio: str = None,
 
-        timeout: int = 90,
+        timeout: int = 120,
 
-        max_retries: int = 3
+        max_retries: int = None
 
     ) -> SubAnalysisResult:
 
-        """Run a single sub-analysis with retry logic to ensure completion."""
+        """Run a single sub-analysis with robust retry logic for API resilience."""
 
         start_time = time.time()
 
@@ -188,17 +233,35 @@ class ModularAnalysisExecutor:
 
         last_error = None
 
+        retries = max_retries or self.max_retries
+
+        consecutive_server_errors = 0
 
 
-        for attempt in range(max_retries):
+
+        for attempt in range(retries):
 
             try:
 
                 if attempt > 0:
 
-                    wait_time = 2 * attempt  # Exponential backoff
+                    is_server_error = self._is_server_error(last_error) if last_error else False
 
-                    logger.info(f"Retry {attempt}/{max_retries} for '{name}' sub-analysis (waiting {wait_time}s)")
+                    if is_server_error:
+                        consecutive_server_errors += 1
+                    else:
+                        consecutive_server_errors = 0
+
+                    wait_time = self._calculate_backoff(attempt, is_server_error)
+
+                    # Log with appropriate severity
+                    if consecutive_server_errors >= 3:
+                        logger.warning(
+                            f"API outage detected ({consecutive_server_errors} consecutive server errors). "
+                            f"Retry {attempt}/{retries} for '{name}' (waiting {wait_time:.1f}s)"
+                        )
+                    else:
+                        logger.info(f"Retry {attempt}/{retries} for '{name}' sub-analysis (waiting {wait_time:.1f}s)")
 
                     time.sleep(wait_time)
 
@@ -207,6 +270,8 @@ class ModularAnalysisExecutor:
                 if video and audio:
 
                     # Full multimodal call with native video + audio
+                    logger.info(f"[API DEBUG] {name}: Calling analyze_with_multimodal (video+audio)")
+                    logger.info(f"[API DEBUG] {name}: model={model}, prompt_len={len(prompt)}, video_len={len(video)}, audio_len={len(audio)}")
 
                     result = self.client.analyze_with_multimodal(
 
@@ -231,6 +296,8 @@ class ModularAnalysisExecutor:
                 elif video:
 
                     # Video-only call (Gemini native video handling)
+                    logger.info(f"[API DEBUG] {name}: Calling analyze_with_multimodal (video-only)")
+                    logger.info(f"[API DEBUG] {name}: model={model}, prompt_len={len(prompt)}, video_len={len(video)}")
 
                     result = self.client.analyze_with_multimodal(
 
@@ -253,6 +320,8 @@ class ModularAnalysisExecutor:
                 elif audio:
 
                     # Audio call
+                    logger.info(f"[API DEBUG] {name}: Calling analyze_audio (audio-only)")
+                    logger.info(f"[API DEBUG] {name}: model={model}, prompt_len={len(prompt)}, audio_len={len(audio)}")
 
                     result = self.client.analyze_audio(
 
@@ -275,6 +344,8 @@ class ModularAnalysisExecutor:
                 else:
 
                     # Text-only call (synthesis)
+                    logger.info(f"[API DEBUG] {name}: Calling synthesize_text (text-only)")
+                    logger.info(f"[API DEBUG] {name}: model={model}, prompt_len={len(prompt)}")
 
                     result = self.client.synthesize_text(
 
@@ -324,7 +395,11 @@ class ModularAnalysisExecutor:
 
                 last_error = e
 
-                logger.warning(f"Sub-analysis '{name}' attempt {attempt + 1}/{max_retries} failed: {e}")
+                is_server_err = self._is_server_error(e)
+
+                err_type = "SERVER ERROR" if is_server_err else "Error"
+
+                logger.warning(f"Sub-analysis '{name}' attempt {attempt + 1}/{retries} - {err_type}: {e}")
 
 
 
@@ -332,7 +407,10 @@ class ModularAnalysisExecutor:
 
         execution_time = time.time() - start_time
 
-        logger.error(f"Sub-analysis '{name}' failed after {max_retries} attempts: {last_error}")
+        logger.error(
+            f"Sub-analysis '{name}' FAILED after {retries} attempts over {execution_time:.1f}s. "
+            f"Last error: {last_error}"
+        )
 
 
 
@@ -342,7 +420,7 @@ class ModularAnalysisExecutor:
 
             stage=stage,
 
-            result=f"ERROR after {max_retries} retries: {str(last_error)}",
+            result=f"ERROR after {retries} retries ({execution_time:.0f}s): {str(last_error)}",
 
             execution_time=execution_time,
 
@@ -370,13 +448,15 @@ class ModularAnalysisExecutor:
 
         context: str = None,
 
-        on_complete: Callable[[str, str], None] = None
+        on_complete: Callable[[str, str], None] = None,
+
+        stage_retry_rounds: int = 3
 
     ) -> StageResult:
 
         """
 
-        Run multiple sub-analyses in parallel.
+        Run multiple sub-analyses in parallel with stage-level retry.
 
 
 
@@ -395,6 +475,8 @@ class ModularAnalysisExecutor:
             context: Optional context to inject into prompts
 
             on_complete: Callback when each sub-analysis completes
+
+            stage_retry_rounds: Number of stage-level retry rounds for failed analyses
 
 
 
@@ -504,6 +586,71 @@ class ModularAnalysisExecutor:
 
 
 
+        # Stage-level retry for failed sub-analyses (persistent retry mode)
+        if self.persistent_retry:
+            for retry_round in range(stage_retry_rounds):
+                # Check for failed sub-analyses
+                failed_names = [name for name, result in sub_results.items() if not result.success]
+
+                if not failed_names:
+                    break  # All succeeded
+
+                logger.warning(
+                    f"Stage '{stage}' retry round {retry_round + 1}/{stage_retry_rounds}: "
+                    f"Retrying {len(failed_names)} failed sub-analyses: {failed_names}"
+                )
+
+                # Wait before stage-level retry (longer wait to let API recover)
+                stage_wait = self._calculate_backoff(retry_round + 2, is_server_error=True)
+                logger.info(f"Waiting {stage_wait:.1f}s before stage retry round...")
+                time.sleep(stage_wait)
+
+                # Retry failed analyses in parallel
+                with ThreadPoolExecutor(max_workers=self.max_workers) as retry_executor:
+                    retry_futures = {}
+
+                    for name in failed_names:
+                        prompt = prepared_prompts[name]
+                        future = retry_executor.submit(
+                            self._run_sub_analysis,
+                            name=name,
+                            stage=stage,
+                            prompt=prompt,
+                            model=model,
+                            video=video,
+                            audio=audio
+                        )
+                        retry_futures[future] = name
+
+                    for future in as_completed(retry_futures):
+                        name = retry_futures[future]
+                        try:
+                            result = future.result()
+                            sub_results[name] = result
+
+                            if on_complete and result.success:
+                                on_complete(name, result.result)
+                                logger.info(f"Stage retry: '{name}' succeeded on round {retry_round + 1}")
+
+                        except Exception as e:
+                            logger.error(f"Stage retry future failed for {name}: {e}")
+                            sub_results[name] = SubAnalysisResult(
+                                name=name,
+                                stage=stage,
+                                result=f"ERROR (stage retry {retry_round + 1}): {str(e)}",
+                                execution_time=0,
+                                success=False,
+                                error=str(e)
+                            )
+
+        # Final status check
+        failed_count = sum(1 for r in sub_results.values() if not r.success)
+        if failed_count > 0:
+            logger.error(
+                f"Stage '{stage}' completed with {failed_count} FAILED sub-analyses "
+                f"after all retry attempts"
+            )
+
         # Combine successful results
 
         combined_parts = []
@@ -554,7 +701,9 @@ class ModularAnalysisExecutor:
 
         model: str,
 
-        on_complete: Callable[[str, str], None] = None
+        on_complete: Callable[[str, str], None] = None,
+
+        interview_instructions: str = ""
 
     ) -> StageResult:
 
@@ -585,12 +734,26 @@ class ModularAnalysisExecutor:
         """
 
         logger.info(f"Starting Stage 0 (Subject ID, Baseline, Deepfake) with {len(STAGE_ZERO_PROMPTS)} sub-analyses")
+        logger.info(f"[STAGE0 DEBUG] interview_instructions truthy={bool(interview_instructions)}, len={len(interview_instructions)}")
 
 
+
+        # Inject interview instructions into prompts if provided
+        prompts = STAGE_ZERO_PROMPTS
+        if interview_instructions:
+            prompts = {key: interview_instructions + "\n\n" + prompt for key, prompt in STAGE_ZERO_PROMPTS.items()}
+            logger.info(f"[STAGE0 DEBUG] Injected interview instructions into {len(prompts)} prompts")
+        else:
+            logger.info(f"[STAGE0 DEBUG] Using original prompts (no interview instructions)")
+
+        for name, prompt in prompts.items():
+            logger.info(f"[STAGE0 DEBUG] Prompt '{name}' length: {len(prompt)} chars")
+
+        logger.info(f"[STAGE0 DEBUG] video param truthy={bool(video)}, audio param truthy={bool(audio)}")
 
         return self._run_parallel_sub_analyses(
 
-            prompts=STAGE_ZERO_PROMPTS,
+            prompts=prompts,
 
             stage='stage_zero',
 
@@ -618,7 +781,9 @@ class ModularAnalysisExecutor:
 
         baseline_context: Optional[str] = None,
 
-        on_complete: Callable[[str, str], None] = None
+        on_complete: Callable[[str, str], None] = None,
+
+        interview_instructions: str = ""
 
     ) -> StageResult:
 
@@ -679,6 +844,11 @@ Please estimate blink rates from the video, but note that LLM estimates
 are less accurate than CV measurements. Be conservative with your estimates."""
                 visual_prompts['blink_rate'] = visual_prompts['blink_rate'].format(cv_blink_data=fallback_msg)
 
+        # Inject interview instructions into all prompts if provided
+        if interview_instructions:
+            visual_prompts = {key: interview_instructions + "\n\n" + prompt for key, prompt in visual_prompts.items()}
+            logger.info("Interview mode instructions injected into visual prompts")
+
         return self._run_parallel_sub_analyses(
 
             prompts=visual_prompts,
@@ -705,7 +875,9 @@ are less accurate than CV measurements. Be conservative with your estimates."""
 
         model: str,
 
-        on_complete: Callable[[str, str], None] = None
+        on_complete: Callable[[str, str], None] = None,
+
+        interview_instructions: str = ""
 
     ) -> StageResult:
 
@@ -735,11 +907,17 @@ are less accurate than CV measurements. Be conservative with your estimates."""
 
         logger.info(f"Starting multimodal analysis with {len(MULTIMODAL_PROMPTS)} sub-analyses (native video)")
 
+        # Inject interview instructions into prompts if provided
+        prompts = MULTIMODAL_PROMPTS
+        if interview_instructions:
+            prompts = {key: interview_instructions + "\n\n" + prompt for key, prompt in MULTIMODAL_PROMPTS.items()}
+            logger.info("Interview mode instructions injected into multimodal prompts")
+
 
 
         return self._run_parallel_sub_analyses(
 
-            prompts=MULTIMODAL_PROMPTS,
+            prompts=prompts,
 
             stage='multimodal',
 
@@ -767,7 +945,9 @@ are less accurate than CV measurements. Be conservative with your estimates."""
 
         visual_context: Optional[str] = None,
 
-        on_complete: Callable[[str, str], None] = None
+        on_complete: Callable[[str, str], None] = None,
+
+        interview_instructions: str = ""
 
     ) -> StageResult:
 
@@ -826,6 +1006,11 @@ Flag any timestamps where vocal stress and visual stress DIVERGE or CONVERGE.
                     audio_prompts[key] = audio_prompts[key] + context_injection
             logger.info(f"Injected visual context into audio prompts for cross-modal analysis")
 
+        # Inject interview instructions into all prompts if provided
+        if interview_instructions:
+            audio_prompts = {key: interview_instructions + "\n\n" + prompt for key, prompt in audio_prompts.items()}
+            logger.info("Interview mode instructions injected into audio prompts")
+
         return self._run_parallel_sub_analyses(
 
             prompts=audio_prompts,
@@ -850,7 +1035,9 @@ Flag any timestamps where vocal stress and visual stress DIVERGE or CONVERGE.
 
         model: str,
 
-        on_complete: Callable[[str, str], None] = None
+        on_complete: Callable[[str, str], None] = None,
+
+        interview_instructions: str = ""
 
     ) -> StageResult:
 
@@ -878,13 +1065,19 @@ Flag any timestamps where vocal stress and visual stress DIVERGE or CONVERGE.
 
         logger.info(f"Starting synthesis with {len(SYNTHESIS_PROMPTS)} sub-analyses")
 
+        # Inject interview instructions into prompts if provided
+        synthesis_prompts = SYNTHESIS_PROMPTS
+        if interview_instructions:
+            synthesis_prompts = {key: interview_instructions + "\n\n" + prompt for key, prompt in SYNTHESIS_PROMPTS.items()}
+            logger.info("Interview mode instructions injected into synthesis prompts")
+
 
 
         # First, run parallel synthesis sub-analyses (personality, threat, etc.)
 
         # Exclude 'final' which needs all synthesis results
 
-        parallel_prompts = {k: v for k, v in SYNTHESIS_PROMPTS.items() if k != 'final'}
+        parallel_prompts = {k: v for k, v in synthesis_prompts.items() if k != 'final'}
 
 
 
@@ -910,7 +1103,7 @@ Flag any timestamps where vocal stress and visual stress DIVERGE or CONVERGE.
 
 
 
-        final_prompt = SYNTHESIS_PROMPTS['final'].format(
+        final_prompt = synthesis_prompts['final'].format(
 
             previous_analyses=previous_analyses,
 
@@ -969,6 +1162,75 @@ Flag any timestamps where vocal stress and visual stress DIVERGE or CONVERGE.
         )
 
 
+    def _generate_interview_instructions(self, interview_context: Dict) -> str:
+        """
+        Generate interview mode instructions to inject into prompts.
+
+        These instructions ensure the LLM focuses analysis on the suspect only
+        and uses interviewer questions as context without analyzing the interviewer.
+
+        Args:
+            interview_context: Dict with 'enabled', 'suspect_position', 'suspect_speaker', 'transcript'
+
+        Returns:
+            Formatted instruction string to prepend to prompts
+        """
+        suspect_position = interview_context.get('suspect_position', 'auto')
+        suspect_speaker = interview_context.get('suspect_speaker', 'auto')
+
+        # Determine position description
+        if suspect_position == 'left':
+            position_desc = "the person on the LEFT side of the frame"
+        elif suspect_position == 'right':
+            position_desc = "the person on the RIGHT side of the frame"
+        elif suspect_position == 'fullscreen':
+            position_desc = "the single person visible when the frame shows only one person"
+        else:
+            position_desc = "the person being interviewed/questioned (the interviewee, NOT the interviewer)"
+
+        # Determine speaker description
+        if suspect_speaker and suspect_speaker != 'auto':
+            speaker_desc = f'In the transcript, the suspect is labeled as "{suspect_speaker}".'
+        else:
+            speaker_desc = "In the transcript, identify the suspect as the person ANSWERING questions, not asking them."
+
+        instructions = f"""
+═══════════════════════════════════════════════════════════════════════════════
+INTERVIEW MODE ACTIVE - CRITICAL ANALYSIS CONSTRAINTS
+═══════════════════════════════════════════════════════════════════════════════
+
+This video shows an INTERVIEW or INTERROGATION between two people.
+
+**THE SUSPECT/SUBJECT (ANALYZE THIS PERSON ONLY):**
+- {position_desc}
+- This is the person being questioned/interviewed
+- ALL behavioral observations must be about THIS person
+- ALL voice/speech analysis targets THIS person's statements
+- ALL facial expressions, body language, micro-expressions = THIS person
+
+**THE INTERVIEWER (DO NOT ANALYZE):**
+- The other person in the frame
+- Use their QUESTIONS only as CONTEXT for understanding responses
+- Do NOT analyze their behavior, expressions, voice, or body language
+- Do NOT include their speech patterns in linguistic analysis
+- Do NOT assess their credibility or deception indicators
+
+**TRANSCRIPT FILTERING:**
+{speaker_desc}
+- When analyzing speech content, focus ONLY on suspect's responses
+- Interviewer questions provide CONTEXT but are NOT analyzed
+
+**CRITICAL REMINDERS:**
+- If you observe a behavior, VERIFY it belongs to the SUSPECT before including it
+- In split-screen frames: Focus on the designated position ({suspect_position})
+- In full-screen frames of one person: That person is likely the suspect speaking at length
+- Do NOT confuse interviewer reactions with suspect behaviors
+
+═══════════════════════════════════════════════════════════════════════════════
+
+"""
+        return instructions
+
 
     def run_full_pipeline(
 
@@ -992,7 +1254,9 @@ Flag any timestamps where vocal stress and visual stress DIVERGE or CONVERGE.
 
         progress_callback: Callable[[str, int], None] = None,
 
-        results_callback: Callable[[str, str], None] = None
+        results_callback: Callable[[str, str], None] = None,
+
+        interview_context: Optional[Dict] = None
 
     ) -> Dict[str, StageResult]:
 
@@ -1022,6 +1286,12 @@ Flag any timestamps where vocal stress and visual stress DIVERGE or CONVERGE.
 
             results_callback: Results streaming callback
 
+            interview_context: Optional interview mode context with keys:
+                - enabled: bool
+                - suspect_position: str ("auto", "left", "right", "fullscreen")
+                - suspect_speaker: str ("auto", "Speaker 1", etc.)
+                - transcript: str (for Q&A parsing)
+
 
 
         Returns:
@@ -1031,6 +1301,18 @@ Flag any timestamps where vocal stress and visual stress DIVERGE or CONVERGE.
         """
 
         all_results = {}
+
+        # Generate interview mode instructions if enabled
+        interview_instructions = ""
+        logger.info(f"[PIPELINE DEBUG] interview_context={interview_context}")
+        logger.info(f"[PIPELINE DEBUG] interview_context type={type(interview_context)}")
+        if interview_context and interview_context.get('enabled'):
+            interview_instructions = self._generate_interview_instructions(interview_context)
+            logger.info(f"[PIPELINE DEBUG] Generated interview_instructions ({len(interview_instructions)} chars)")
+        else:
+            logger.info(f"[PIPELINE DEBUG] interview_instructions is empty string (interview mode disabled)")
+        logger.info(f"[PIPELINE DEBUG] video size: {len(video) if video else 0} chars")
+        logger.info(f"[PIPELINE DEBUG] audio size: {len(audio) if audio else 0} chars")
 
 
 
@@ -1054,7 +1336,9 @@ Flag any timestamps where vocal stress and visual stress DIVERGE or CONVERGE.
 
             model=visual_model,
 
-            on_complete=results_callback
+            on_complete=results_callback,
+
+            interview_instructions=interview_instructions
 
         )
 
@@ -1110,7 +1394,9 @@ Flag any timestamps where vocal stress and visual stress DIVERGE or CONVERGE.
 
             baseline_context=baseline_context,
 
-            on_complete=results_callback
+            on_complete=results_callback,
+
+            interview_instructions=interview_instructions
 
         )
 
@@ -1148,7 +1434,9 @@ Flag any timestamps where vocal stress and visual stress DIVERGE or CONVERGE.
 
                 model=multimodal_model,
 
-                on_complete=results_callback
+                on_complete=results_callback,
+
+                interview_instructions=interview_instructions
 
             )
 
@@ -1190,7 +1478,9 @@ Flag any timestamps where vocal stress and visual stress DIVERGE or CONVERGE.
 
                 visual_context=visual_context,
 
-                on_complete=results_callback
+                on_complete=results_callback,
+
+                interview_instructions=interview_instructions
 
             )
 
@@ -1281,6 +1571,11 @@ than these CV-measured values, the LLM has hallucinated. Use CV data.
             previous_analyses = cv_blink_text + "\n\n" + previous_analyses
             logger.info(f"CV blink data injected into synthesis (BPM={blink_validation.get('metrics', {}).get('bpm', 0):.1f})")
 
+        # Inject interview mode instructions into synthesis context if enabled
+        if interview_instructions:
+            previous_analyses = interview_instructions + "\n\n" + previous_analyses
+            logger.info("Interview mode instructions injected into synthesis context")
+
 
 
         # Stage 4: Synthesis (parallel sub-analyses + final integration)
@@ -1293,7 +1588,9 @@ than these CV-measured values, the LLM has hallucinated. Use CV data.
 
             model=synthesis_model,
 
-            on_complete=results_callback
+            on_complete=results_callback,
+
+            interview_instructions=interview_instructions
 
         )
 

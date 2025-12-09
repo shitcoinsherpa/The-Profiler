@@ -324,8 +324,8 @@ Provides programmatic access to:
             # Download video
             file_path, metadata = download_video(
                 request.video_url,
-                max_duration=300,
-                max_filesize_mb=100
+                max_duration=600,
+                max_filesize_mb=250
             )
 
             try:

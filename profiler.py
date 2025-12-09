@@ -6,6 +6,7 @@ Coordinates the 6-stage behavioral analysis pipeline.
 import json
 import time
 import logging
+import os
 from typing import Dict, Callable, Optional
 from datetime import datetime
 from dataclasses import dataclass
@@ -42,6 +43,9 @@ try:
 except ImportError:
     MODULAR_AVAILABLE = False
 from analysis.blink_detector import get_blink_metrics_for_prompt, fuse_blink_metrics
+
+# Import video compressor for large files
+from media.video_compressor import maybe_compress_video, cleanup_compressed_video
 
 # Import spectrogram analyzer for voice stress visualization
 try:
@@ -145,7 +149,10 @@ class BehavioralProfiler:
         video_path: str,
         progress_callback: Optional[Callable[[str, int], None]] = None,
         results_callback: Optional[Callable[[str, str], None]] = None,
-        use_cache: bool = True
+        use_cache: bool = True,
+        interview_mode: bool = False,
+        suspect_position: str = "auto",
+        suspect_speaker: str = "auto"
     ) -> Dict:
         """
         Run complete behavioral profiling pipeline on video.
@@ -158,6 +165,9 @@ class BehavioralProfiler:
             progress_callback: Optional callback function(status_message, step_number)
             results_callback: Optional callback for streaming partial results(stage_name, result_text)
             use_cache: Whether to check/use cached results
+            interview_mode: If True, focus analysis on suspect only, ignore interviewer
+            suspect_position: Position of suspect in split-screen ("auto", "left", "right", "fullscreen")
+            suspect_speaker: Speaker label for suspect in transcript ("auto", "Speaker 1", etc.)
 
         Returns:
             Dictionary containing all analyses and metadata
@@ -221,9 +231,33 @@ class BehavioralProfiler:
             video_height = int(temp_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
             temp_cap.release()
 
+            # Compress video if over 48MB to reduce API payload and costs
+            compression_info = None
+            video_path_for_api = video_path
+            original_file_size = os.path.getsize(video_path)
+
+            if original_file_size > 48 * 1024 * 1024:  # 48MB threshold
+                self._update_progress(
+                    progress_callback,
+                    f"📦 Compressing video ({original_file_size / 1024 / 1024:.0f}MB > 48MB threshold)...",
+                    1
+                )
+                video_path_for_api, compression_info = maybe_compress_video(video_path)
+                if compression_info:
+                    logger.info(
+                        f"Video compressed: {compression_info['original_size_mb']:.1f}MB -> "
+                        f"{compression_info['compressed_size_mb']:.1f}MB "
+                        f"({compression_info['reduction_percent']:.0f}% reduction)"
+                    )
+                    self._send_result(
+                        results_callback, 'info',
+                        f"Video compressed from {compression_info['original_size_mb']:.0f}MB to "
+                        f"{compression_info['compressed_size_mb']:.0f}MB for faster processing"
+                    )
+
             # Read video file as base64 for native Gemini processing
             import base64
-            with open(video_path, 'rb') as f:
+            with open(video_path_for_api, 'rb') as f:
                 base64_video = base64.b64encode(f.read()).decode('utf-8')
 
             video_metadata = {
@@ -231,7 +265,9 @@ class BehavioralProfiler:
                 'fps': video_fps,
                 'total_frames': total_video_frames,
                 'resolution': (video_width, video_height),
-                'native_video_processing': True
+                'native_video_processing': True,
+                'compressed': compression_info is not None,
+                'original_size_mb': original_file_size / 1024 / 1024
             }
 
             logger.info(f"Video loaded: {video_duration:.1f}s, {video_width}x{video_height}, {len(base64_video) / 1024 / 1024:.1f}MB base64")
@@ -248,11 +284,17 @@ class BehavioralProfiler:
             # Run CV-based blink detection (ground truth for LLM blink estimates)
             blink_validation = {'available': False, 'formatted_text': 'Blink detection failed', 'metrics': {}}
             try:
-                blink_validation = get_blink_metrics_for_prompt(video_path)
+                # Pass interview mode settings for position-based face selection
+                blink_validation = get_blink_metrics_for_prompt(
+                    video_path,
+                    interview_mode=interview_mode,
+                    suspect_position=suspect_position
+                )
                 if blink_validation['available']:
                     total_blinks = blink_validation['metrics'].get('total_blinks', 0)
                     bpm = blink_validation['metrics'].get('bpm', 0)
-                    logger.info(f"CV blink detection: {total_blinks} blinks, {bpm:.1f} BPM")
+                    face_info = f" (suspect face)" if interview_mode else ""
+                    logger.info(f"CV blink detection: {total_blinks} blinks, {bpm:.1f} BPM{face_info}")
                 else:
                     # Face not detected - subject may be turned away or out of frame
                     logger.warning("⚠️ CV blink detection: No face detected. Subject may be out of frame or turned away.")
@@ -366,6 +408,21 @@ class BehavioralProfiler:
                 temperature=0.7
             )
 
+            # Build interview context if interview mode is enabled
+            logger.info(f"[PROFILER DEBUG] interview_mode={interview_mode}, type={type(interview_mode)}")
+            logger.info(f"[PROFILER DEBUG] suspect_position={suspect_position}, suspect_speaker={suspect_speaker}")
+            interview_context = None
+            if interview_mode:
+                interview_context = {
+                    'enabled': True,
+                    'suspect_position': suspect_position,
+                    'suspect_speaker': suspect_speaker,
+                    'transcript': transcription_result.transcript if transcription_result and transcription_result.success else None
+                }
+                logger.info(f"Interview mode enabled: suspect_position={suspect_position}, suspect_speaker={suspect_speaker}")
+            else:
+                logger.info(f"[PROFILER DEBUG] Interview mode DISABLED - interview_context will be None")
+
             # Run the full modular pipeline with native video
             modular_results = executor.run_full_pipeline(
                 video=base64_video,
@@ -377,7 +434,8 @@ class BehavioralProfiler:
                 transcript=transcription_result.transcript if transcription_result and transcription_result.success else None,
                 blink_validation=blink_validation,  # Pass CV ground truth to prevent hallucination propagation
                 progress_callback=progress_callback,
-                results_callback=results_callback
+                results_callback=results_callback,
+                interview_context=interview_context  # Pass interview mode context
             )
 
             # Format results for compatibility with existing structure
@@ -512,9 +570,21 @@ class BehavioralProfiler:
                 except Exception as cache_err:
                     logger.warning(f"Failed to cache result: {cache_err}")
 
+            # Cleanup compressed video file if created
+            if compression_info:
+                cleanup_compressed_video(compression_info)
+                logger.debug("Cleaned up compressed video file")
+
             return result
 
         except Exception as e:
+            # Cleanup compressed video file if created (on error path)
+            try:
+                if 'compression_info' in locals() and compression_info:
+                    cleanup_compressed_video(compression_info)
+            except:
+                pass
+
             # Return error result
             error_result = {
                 'case_id': case_id,
